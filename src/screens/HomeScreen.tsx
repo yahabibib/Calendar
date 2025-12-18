@@ -1,7 +1,12 @@
 import React, { useState } from 'react'
 import { View, StyleSheet, TouchableOpacity, Text, StatusBar } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { format } from 'date-fns'
+
+// 引入两个组件
 import { CalendarWidget } from '../components/CalendarWidget'
+import { YearCalendarWidget } from '../components/YearCalendarWidget' // 记得导入
+
 import { COLORS } from '../theme'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -9,28 +14,49 @@ import { RootStackParamList } from '../types/navigation'
 
 export const HomeScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
+
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+
+  // ✨ 新增：视图模式状态
+  const [viewMode, setViewMode] = useState<'month' | 'year'>('month')
+
+  // 处理：从年视图选择了一个月份
+  const handleMonthSelect = (date: Date) => {
+    // 1. 更新选中的日期（通常选中该月1号）
+    setSelectedDate(format(date, 'yyyy-MM-dd'))
+    // 2. 切回月视图
+    setViewMode('month')
+  }
 
   return (
     <View style={styles.container}>
-      {/* ✨ 状态栏核心配置：
-         1. translucent: 允许内容钻到状态栏底下
-         2. backgroundColor="transparent": 背景透明
-         3. barStyle="dark-content": 文字变黑（适应白色背景日历）
-      */}
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-      {/* 只保护底部 (Home Indicator) 和左右，顶部完全放开 */}
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
-        {/* 日历区域：flex: 1 撑满全屏 */}
         <View style={styles.calendarContainer}>
-          <CalendarWidget selectedDate={selectedDate} onDateSelect={setSelectedDate} />
+          {viewMode === 'month' ? (
+            // --- 月视图 ---
+            <CalendarWidget
+              selectedDate={selectedDate}
+              onDateSelect={setSelectedDate}
+              // ✨ 点击左上角年份，切换到年视图
+              onYearHeaderPress={() => setViewMode('year')}
+            />
+          ) : (
+            // --- 年视图 ---
+            <YearCalendarWidget
+              currentYear={new Date(selectedDate)}
+              onMonthSelect={handleMonthSelect}
+            />
+          )}
         </View>
 
-        {/* 悬浮按钮 */}
-        <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddEvent')}>
-          <Text style={styles.fabIcon}>+</Text>
-        </TouchableOpacity>
+        {/* FAB 按钮 (仅在月视图或根据需求显示) */}
+        {viewMode === 'month' && (
+          <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddEvent')}>
+            <Text style={styles.fabIcon}>+</Text>
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
     </View>
   )
