@@ -1,58 +1,68 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  StyleSheet, 
-  TouchableOpacity, 
+import React, { useState } from 'react'
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
   Switch,
   ScrollView,
-  Alert
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { useEventStore } from '../store/eventStore';
-import { COLORS, SPACING, COMMON_STYLES } from '../theme';
+  Alert,
+} from 'react-native'
+import { useNavigation, RouteProp, useRoute } from '@react-navigation/native'
+import DateTimePicker from '@react-native-community/datetimepicker'
+import { useEventStore } from '../store/eventStore'
+import { RootStackParamList } from '../types/navigation'
+import { COLORS, SPACING, COMMON_STYLES } from '../theme'
 
 export const AddEventScreen = () => {
-  const navigation = useNavigation();
-  const addEvent = useEventStore((state) => state.addEvent);
+  const navigation = useNavigation()
 
-  // --- 表单状态 ---
-  const [title, setTitle] = useState('');
-  const [location, setLocation] = useState('');
-  const [description, setDescription] = useState('');
-  const [isAllDay, setIsAllDay] = useState(false);
-  
-  // 时间状态
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date(Date.now() + 60 * 60 * 1000)); // 默认一小时后
+  // 1. 获取路由参数
+  const route = useRoute<RouteProp<RootStackParamList, 'AddEvent'>>()
+  const eventToEdit = route.params?.event // 如果有这个值，说明是编辑模式
+
+  const { addEvent, updateEvent } = useEventStore() // 取出 updateEvent
+
+  // 2. 初始化 State：如果有 eventToEdit，就用它的值；否则用默认值
+  const [title, setTitle] = useState(eventToEdit?.title || '')
+  const [location, setLocation] = useState(eventToEdit?.location || '')
+  const [description, setDescription] = useState(eventToEdit?.description || '')
+  const [isAllDay, setIsAllDay] = useState(eventToEdit?.isAllDay || false)
+
+  const [startDate, setStartDate] = useState(
+    eventToEdit ? new Date(eventToEdit.startTime) : new Date(),
+  )
+  const [endDate, setEndDate] = useState(
+    eventToEdit ? new Date(eventToEdit.endTime) : new Date(Date.now() + 3600000),
+  )
 
   // 提交逻辑
   const handleSave = () => {
     if (!title.trim()) {
-      Alert.alert('提示', '请输入日程标题');
-      return;
+      Alert.alert('提示', '请输入日程标题')
+      return
     }
 
-    // 1. 构造新对象
-    const newEvent = {
-      id: Date.now().toString(), // 简单的 ID 生成
+    const eventData = {
+      // 3. 关键逻辑：编辑模式沿用旧 ID，新增模式生成新 ID
+      id: eventToEdit ? eventToEdit.id : Date.now().toString(),
       title,
       location,
       description,
       isAllDay,
-      // 转换为 ISO 字符串
       startTime: startDate.toISOString(),
       endTime: endDate.toISOString(),
-    };
+    }
 
-    // 2. 存入全局 Store
-    addEvent(newEvent);
+    if (eventToEdit) {
+      updateEvent(eventData) // 更新
+    } else {
+      addEvent(eventData) // 新增
+    }
 
-    // 3. 返回上一页
-    navigation.goBack();
-  };
+    navigation.goBack()
+  }
 
   return (
     <View style={styles.container}>
@@ -61,7 +71,7 @@ export const AddEventScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.headerButton}>取消</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>新建日程</Text>
+        <Text style={styles.headerTitle}>{eventToEdit ? '编辑日程' : '新建日程'}</Text>
         <TouchableOpacity onPress={handleSave}>
           <Text style={[styles.headerButton, { fontWeight: 'bold' }]}>保存</Text>
         </TouchableOpacity>
@@ -133,11 +143,10 @@ export const AddEventScreen = () => {
             textAlignVertical="top" // Android 对齐
           />
         </View>
-
       </ScrollView>
     </View>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -200,6 +209,6 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: COLORS.border,
-    marginLeft: 0, 
+    marginLeft: 0,
   },
-});
+})

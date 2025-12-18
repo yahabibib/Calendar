@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { HomeScreen } from '../screens/HomeScreen';
 import { AddEventScreen } from '../screens/AddEventScreen';
+import { EventDetailsScreen } from '../screens/EventDetailsScreen';
 import { COLORS } from '../theme';
 
 // 创建 Stack 实例
@@ -33,6 +34,12 @@ export const AppNavigator = () => {
           name="AddEvent" 
           component={AddEventScreen} 
           options={{ title: '新建日程' }} 
+        />
+
+        <Stack.Screen 
+          name="EventDetails" 
+          component={EventDetailsScreen} 
+          options={{ title: '日程详情' }} 
         />
       </Stack.Navigator>
     </NavigationContainer>

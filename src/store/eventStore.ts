@@ -7,6 +7,8 @@ interface EventStore {
   addEvent: (event: CalendarEvent) => void;
   // Action: 删除日程
   deleteEvent: (id: string) => void;
+  // Action: 更新日程
+  updateEvent: (updatedEvent: CalendarEvent) => void;
 }
 
 export const useEventStore = create<EventStore>((set) => ({
@@ -19,5 +21,9 @@ export const useEventStore = create<EventStore>((set) => ({
 
   deleteEvent: (id) => set((state) => ({
     events: state.events.filter((e) => e.id !== id)
+  })),
+
+  updateEvent: (updatedEvent) => set((state) => ({
+    events: state.events.map((e) => e.id === updatedEvent.id ? updatedEvent : e)
   })),
 }));

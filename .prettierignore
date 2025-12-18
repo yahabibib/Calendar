@@ -1,0 +1,13 @@
+# 忽略依赖和构建产物
+node_modules/
+package-lock.json
+yarn.lock
+
+# 忽略 iOS/Android 原生构建目录
+ios/
+android/
+
+# 忽略 Expo 或 Metro 缓存
+.expo/
+dist/
+web-build/
