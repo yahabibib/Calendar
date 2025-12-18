@@ -1,5 +1,11 @@
 {
   "extends": "@react-native/typescript-config",
+  "compilerOptions": {
+    /* 显式告诉 TS 编译器这里是 React Native 环境 */
+    "jsx": "react-native",
+    /* 允许合成默认导入 (可选，推荐加上，防止 import React 报错) */
+    "allowSyntheticDefaultImports": true
+  },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["**/node_modules", "**/Pods"]
 }
