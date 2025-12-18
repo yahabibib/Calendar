@@ -1,10 +1,8 @@
 import React, { useMemo } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { format, isSameDay, getDay, startOfMonth } from 'date-fns'
-import { useCalendarGrid } from '../useCalendarGrid'
-
-// ✨ 引入抽离的样式和 store
-import { styles, MONTH_TITLE_HEIGHT } from './MonthView.styles'
+import { useCalendarGrid } from '../../hooks/useCalendarGrid'
+import { styles, MONTH_TITLE_HEIGHT } from './styles'
 
 // 导出常量供 CalendarWidget 使用
 export { MONTH_TITLE_HEIGHT }

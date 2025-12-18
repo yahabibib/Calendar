@@ -19,25 +19,27 @@ import {
 import Animated from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { MonthView, MONTH_TITLE_HEIGHT } from './CustomCalendar/monthCalendar/MonthView'
+// ⚠️ 引入抽离的样式
+import { styles } from './styles'
 
-// ✨ 引入抽离的样式
-import { styles } from './CalendarWidget.styles'
+// ⚠️ 引入原子组件 MonthGrid
+import { MonthGrid, MONTH_TITLE_HEIGHT } from '../../components/MonthGrid'
 
 const PAST_MONTHS = 24
 const FUTURE_MONTHS = 24
 const TOTAL_MONTHS = PAST_MONTHS + 1 + FUTURE_MONTHS
 
-interface CalendarWidgetProps {
+interface MonthViewProps {
   selectedDate: string
   onDateSelect: (date: string) => void
-  onYearHeaderPress?: () => void
+  // 点击左上角年份的回调
+  onHeaderYearPress?: () => void
 }
 
-export const CalendarWidget: React.FC<CalendarWidgetProps> = ({
+export const MonthView: React.FC<MonthViewProps> = ({
   selectedDate,
   onDateSelect,
-  onYearHeaderPress,
+  onHeaderYearPress,
 }) => {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions()
   const insets = useSafeAreaInsets()
@@ -45,7 +47,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({
 
   const [containerWidth, setContainerWidth] = useState(windowWidth)
 
-  // 布局计算逻辑保持在组件内
+  // 布局计算逻辑
   const safeWidth = containerWidth > 0 ? containerWidth : windowWidth
   const cellWidth = safeWidth / 7
   const rowHeight = Math.max(85, windowHeight / 10)
@@ -129,7 +131,8 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({
     ({ item }: { item: Date }) => {
       return (
         <View>
-          <MonthView
+          {/* 使用重构后的 MonthGrid */}
+          <MonthGrid
             currentDate={item}
             selectedDate={new Date(selectedDate)}
             onDateSelect={d => onDateSelect(format(d, 'yyyy-MM-dd'))}
@@ -153,7 +156,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({
     <View style={styles.container} onLayout={onLayout}>
       <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
         <View style={styles.navRow}>
-          <TouchableOpacity style={styles.yearButton} onPress={onYearHeaderPress}>
+          <TouchableOpacity style={styles.yearButton} onPress={onHeaderYearPress}>
             <Text style={styles.yearArrow}>◀</Text>
             <Text style={styles.yearText}>{format(headerDate, 'yyyy年')}</Text>
           </TouchableOpacity>
