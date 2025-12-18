@@ -40,7 +40,8 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ selectedDate, on
   const [containerWidth, setContainerWidth] = useState(windowWidth)
 
   const safeWidth = containerWidth > 0 ? containerWidth : windowWidth
-  const cellWidth = safeWidth / 7
+  const cellWidth = Math.floor(safeWidth / 7) 
+  const remainingWidth = safeWidth - cellWidth * 7
   const rowHeight = Math.max(85, windowHeight / 10)
 
   const onLayout = useCallback(

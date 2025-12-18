@@ -44,23 +44,21 @@ export const MonthView: React.FC<MonthViewProps> = ({
         </Text>
       </View>
 
-      <View style={styles.grid}>
-        {gridData.map(dayItem => {
+      <View style={[styles.grid, { width: cellWidth * 7 }]}>
+        {gridData.map((dayItem, index) => {
           const isSelected = isSameDay(dayItem.date, selectedDate)
-
-          if (!dayItem.isCurrentMonth) {
-            return (
-              <View
-                key={dayItem.dateString}
-                style={[styles.cell, { height: rowHeight, width: cellWidth }]}
-              />
-            )
-          }
+          const isLastColumn = (index + 1) % 7 === 0
+          const isLastRow = index >= gridData.length - 7
 
           return (
             <TouchableOpacity
               key={dayItem.dateString}
-              style={[styles.cell, { height: rowHeight, width: cellWidth }]}
+              style={[
+                styles.cell,
+                { height: rowHeight, width: cellWidth },
+                isLastColumn && { borderRightWidth: 0 },
+                isLastRow && { borderBottomWidth: 0 },
+              ]}
               onPress={() => onDateSelect(dayItem.date)}
               activeOpacity={0.7}>
               <View
