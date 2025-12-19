@@ -58,10 +58,12 @@ export const AllDayList = () => {
     events,
     headerListRef,
     derivedHeaderHeight,
-    // ✨ 引入 Handler
+    isWideScreen,
     onHeaderScroll,
     onHeaderBeginDrag,
     onScrollEnd,
+    // ✨ 获取 initialIndex
+    initialIndex,
   } = useWeekViewContext()
 
   return (
@@ -81,22 +83,28 @@ export const AllDayList = () => {
           />
         )}
         horizontal
-        // ✨ 开启滚动
         scrollEnabled={true}
         onScroll={onHeaderScroll}
         onScrollBeginDrag={onHeaderBeginDrag}
         onMomentumScrollEnd={onScrollEnd}
         onScrollEndDrag={onScrollEnd}
         scrollEventThrottle={16}
-        // ✨ 新增吸附属性
-        snapToInterval={dayColumnWidth}
+        snapToInterval={isWideScreen ? undefined : dayColumnWidth}
+        decelerationRate="fast"
         getItemLayout={(data, index) => ({
           length: dayColumnWidth,
           offset: dayColumnWidth * index,
           index,
         })}
         showsHorizontalScrollIndicator={false}
-        initialNumToRender={3}
+        // ✨ 关键修复
+        initialScrollIndex={initialIndex}
+        onScrollToIndexFailed={info => {
+          const wait = new Promise(resolve => setTimeout(resolve, 500))
+          wait.then(() => {
+            headerListRef.current?.scrollToIndex({ index: info.index, animated: false })
+          })
+        }}
       />
     </View>
   )

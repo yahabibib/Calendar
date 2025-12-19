@@ -41,6 +41,7 @@ interface WeekViewContextType {
   weekDateItemWidth: number
   derivedHeaderHeight: number
   isWideScreen: boolean
+  initialIndex: number
 
   visibleStartDateIndex: number
 
@@ -221,6 +222,18 @@ export const WeekViewProvider: React.FC<any> = ({
   }, [selectedDate, startDateAnchor])
 
   useEffect(() => {
+    if (initialIndex > 0) {
+      setVisibleStartDateIndex(initialIndex)
+      setTimeout(() => {
+        // 加长一点延时，作为 fallback
+        bodyListRef.current?.scrollToIndex({ index: initialIndex, animated: false })
+        headerListRef.current?.scrollToIndex({ index: initialIndex, animated: false })
+        weekListRef.current?.scrollToIndex({ index: initialIndex, animated: false })
+      }, 100)
+    }
+  }, [initialIndex])
+
+  useEffect(() => {
     // 条件：必须要拿到高度，且尚未执行过初始定位
     if (viewportHeight > 0 && !hasScrolledToNow && verticalScrollRef.current) {
       const now = new Date()
@@ -287,6 +300,7 @@ export const WeekViewProvider: React.FC<any> = ({
     derivedHeaderHeight,
     isWideScreen,
     visibleStartDateIndex,
+    initialIndex,
 
     weekListRef,
     headerListRef,

@@ -46,10 +46,11 @@ export const WeekDateList = () => {
     weekListRef,
     visibleStartDateIndex,
     isWideScreen,
-    // ✨ 引入 Handler
     onWeekScroll,
     onWeekBeginDrag,
     onScrollEnd,
+    // ✨ 获取 initialIndex
+    initialIndex,
   } = useWeekViewContext()
 
   const numVisibleColumns = isWideScreen ? 7 : 2
@@ -72,21 +73,29 @@ export const WeekDateList = () => {
           />
         )}
         horizontal
-        // ✨ 开启滚动
         scrollEnabled={true}
         onScroll={onWeekScroll}
         onScrollBeginDrag={onWeekBeginDrag}
         onMomentumScrollEnd={onScrollEnd}
-        onScrollEndDrag={onScrollEnd} // 加上这个更保险
-        scrollEventThrottle={16} // 保证平滑
-        snapToInterval={weekDateItemWidth}
+        onScrollEndDrag={onScrollEnd}
+        scrollEventThrottle={16}
+        snapToInterval={isWideScreen ? undefined : weekDateItemWidth}
+        decelerationRate="fast"
         getItemLayout={(data, index) => ({
           length: weekDateItemWidth,
           offset: weekDateItemWidth * index,
           index,
         })}
         showsHorizontalScrollIndicator={false}
-        initialNumToRender={7}
+        // ✨ 关键修复：添加初始滚动索引
+        initialScrollIndex={initialIndex}
+        // ✨ 关键修复：防止布局未就绪导致的滚动失败
+        onScrollToIndexFailed={info => {
+          const wait = new Promise(resolve => setTimeout(resolve, 500))
+          wait.then(() => {
+            weekListRef.current?.scrollToIndex({ index: info.index, animated: false })
+          })
+        }}
       />
     </View>
   )

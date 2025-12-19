@@ -2,21 +2,22 @@ import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
+    // 移除 absolute, top, height 等布局属性，只保留外观属性
     borderRadius: 4,
-    padding: 2,
+    padding: 4,
+    justifyContent: 'flex-start',
     borderLeftWidth: 3,
+    borderLeftColor: 'rgba(0,0,0,0.1)',
     overflow: 'hidden',
-    // 默认样式，会被 props 覆盖
-    width: '100%', 
   },
   title: {
-    fontSize: 10,
+    color: 'white',
+    fontSize: 12,
     fontWeight: '600',
-    color: '#333',
+    marginBottom: 2,
   },
   time: {
-    fontSize: 9,
-    color: '#555',
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 10,
   },
-});
+})
