@@ -18,11 +18,7 @@ import {
 } from 'date-fns'
 import Animated from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-
-// ⚠️ 引入抽离的样式
 import { styles } from './styles'
-
-// ⚠️ 引入原子组件 MonthGrid
 import { MonthGrid, MONTH_TITLE_HEIGHT } from '../../components/MonthGrid'
 
 const PAST_MONTHS = 24
@@ -32,8 +28,7 @@ const TOTAL_MONTHS = PAST_MONTHS + 1 + FUTURE_MONTHS
 interface MonthViewProps {
   selectedDate: string
   onDateSelect: (date: string) => void
-  // 点击左上角年份的回调
-  onHeaderYearPress?: () => void
+  onHeaderYearPress?: (currentDate: Date) => void
 }
 
 export const MonthView: React.FC<MonthViewProps> = ({
@@ -156,7 +151,9 @@ export const MonthView: React.FC<MonthViewProps> = ({
     <View style={styles.container} onLayout={onLayout}>
       <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
         <View style={styles.navRow}>
-          <TouchableOpacity style={styles.yearButton} onPress={onHeaderYearPress}>
+          <TouchableOpacity
+            style={styles.yearButton}
+            onPress={() => onHeaderYearPress?.(headerDate)}>
             <Text style={styles.yearArrow}>◀</Text>
             <Text style={styles.yearText}>{format(headerDate, 'yyyy年')}</Text>
           </TouchableOpacity>

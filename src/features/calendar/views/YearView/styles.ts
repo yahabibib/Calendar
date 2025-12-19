@@ -8,8 +8,6 @@ export const styles = StyleSheet.create({
   yearPage: {
     paddingHorizontal: 10,
     marginBottom: 30,
-    // 强制高度占满一屏或更多，保证视觉上的分页感
-    minHeight: '100%',
   },
   yearTitle: {
     fontSize: 34,
@@ -18,6 +16,7 @@ export const styles = StyleSheet.create({
     marginBottom: 15,
     marginLeft: 5,
     marginTop: 10,
+    height: 40, // ✨ 给标题固定一个高度，方便计算
   },
   monthsGrid: {
     flexDirection: 'row',

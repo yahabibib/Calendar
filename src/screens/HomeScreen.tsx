@@ -5,7 +5,6 @@ import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../types/navigation'
 
-// ✨ 只需引入这一个
 import { Calendar } from '../features/calendar/Calendar'
 
 export const HomeScreen = () => {
@@ -15,8 +14,9 @@ export const HomeScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-      <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
-        {/* 逻辑全在 Calendar 里，HomeScreen 变得非常干净 */}
+      {/* ✨ 核心修改：移除 'bottom' */}
+      {/* 这样 Calendar 就会延伸到屏幕物理最底端 */}
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
         <Calendar onAddEventPress={() => navigation.navigate('AddEvent')} />
       </SafeAreaView>
     </View>
