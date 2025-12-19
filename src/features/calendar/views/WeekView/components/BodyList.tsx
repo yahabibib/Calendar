@@ -1,15 +1,16 @@
-import React, { memo, useMemo } from 'react'
+// src/features/calendar/views/WeekView/components/BodyList.tsx
+import React, { memo, useMemo, useCallback } from 'react'
 import { View, FlatList, StyleSheet } from 'react-native'
-import { isSameDay, isValid } from 'date-fns'
+import { isSameDay, isValid, setHours, setMinutes } from 'date-fns'
+import { useNavigation } from '@react-navigation/native'
 import { useWeekViewContext } from '../WeekViewContext'
 import { CurrentTimeIndicator } from '../../../components/CurrentTimeIndicator'
 import { HOUR_HEIGHT } from '../../../../../theme/layout'
-// ✨ 引入新组件
 import { EventColumn } from './EventColumn'
+import { DragCreateWrapper } from './DragCreateWrapper'
 
-const DayBodyItem = memo(({ date, width, events, onEventPress }: any) => {
+const DayBodyItem = memo(({ date, width, events, onEventPress, onCreateEvent }: any) => {
   const isToday = useMemo(() => isValid(date) && isSameDay(date, new Date()), [date])
-  // 过滤出非全天事件
   const regularEvents = useMemo(() => events.filter((e: any) => !e.isAllDay), [events])
 
   return (
@@ -20,19 +21,14 @@ const DayBodyItem = memo(({ date, width, events, onEventPress }: any) => {
         borderRightWidth: 1,
         borderRightColor: '#f5f5f5',
         position: 'relative',
-        // 确保子元素绝对定位相对于此容器
         overflow: 'hidden',
       }}>
-      {/* 1. 洋葱圈底层：背景网格线 (由父级 FlatList 背景统一处理，或者在这里不画线只画列边框) */}
-
-      {/* 2. 洋葱圈中间层：事件列 */}
-      {/* ✨ 这里不再直接 map ScheduleEvent，而是交给 EventColumn 处理重叠布局 */}
-      <EventColumn events={regularEvents} width={width} onEventPress={onEventPress} />
-
-      {/* 3. 特殊元素：当前时间线 (层级最高) */}
-      {isToday && <CurrentTimeIndicator />}
-
-      {/* 4. 洋葱圈顶层：交互层 (DragCreateWrapper) - 下一步实现 */}
+      <DragCreateWrapper date={date} onCreateEvent={onCreateEvent}>
+        <View style={{ flex: 1 }}>
+          <EventColumn events={regularEvents} width={width} onEventPress={onEventPress} />
+          {isToday && <CurrentTimeIndicator />}
+        </View>
+      </DragCreateWrapper>
     </View>
   )
 })
@@ -52,6 +48,24 @@ export const BodyList = () => {
     initialIndex,
   } = useWeekViewContext()
 
+  const navigation = useNavigation<any>()
+
+  // ✨ 关键修复：接收 timestamp (number)
+  const handleCreateEvent = useCallback(
+    (timestamp: number, hour: number, minute: number) => {
+      // 1. 还原日期对象
+      const baseDate = new Date(timestamp)
+      // 2. 设置时分
+      const startDate = setMinutes(setHours(baseDate, hour), minute)
+
+      // 3. 此时 startDate 是合法的 Date 对象，toISOString() 不会报错
+      navigation.navigate('AddEvent', {
+        initialDate: startDate.toISOString(),
+      })
+    },
+    [navigation],
+  )
+
   return (
     <View style={{ flex: 1 }}>
       <FlatList
@@ -66,6 +80,7 @@ export const BodyList = () => {
               (e: any) => isValid(new Date(e.startDate)) && isSameDay(new Date(e.startDate), item),
             )}
             onEventPress={onEventPress}
+            onCreateEvent={handleCreateEvent}
           />
         )}
         horizontal
