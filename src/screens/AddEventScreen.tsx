@@ -1,4 +1,3 @@
-// src/screens/AddEventScreen.tsx
 import React, { useState, useLayoutEffect } from 'react'
 import {
   ScrollView,
@@ -27,29 +26,29 @@ import { CustomAlarmModal } from '../features/event/components/Modals/CustomAlar
 
 // Constants
 const REPEAT_PRESETS = [
-  { label: 'Never', value: null },
-  { label: 'Daily', value: 'DAILY' },
-  { label: 'Weekly', value: 'WEEKLY' },
-  { label: 'Monthly', value: 'MONTHLY' },
-  { label: 'Yearly', value: 'YEARLY' },
-  { label: 'Custom...', value: 'CUSTOM' },
+  { label: '从不', value: null },
+  { label: '每天', value: 'DAILY' },
+  { label: '每周', value: 'WEEKLY' },
+  { label: '每月', value: 'MONTHLY' },
+  { label: '每年', value: 'YEARLY' },
+  { label: '自定义...', value: 'CUSTOM' },
 ]
 
 const ALARM_PRESETS = [
-  { label: 'None', value: null },
-  { label: 'At time of event', value: 0 },
-  { label: '5 minutes before', value: 5 },
-  { label: '15 minutes before', value: 15 },
-  { label: '30 minutes before', value: 30 },
-  { label: '1 hour before', value: 60 },
-  { label: '1 day before', value: 1440 },
-  { label: 'Custom...', value: -1 },
+  { label: '无', value: null },
+  { label: '日程发生时', value: 0 },
+  { label: '5 分钟前', value: 5 },
+  { label: '15 分钟前', value: 15 },
+  { label: '30 分钟前', value: 30 },
+  { label: '1 小时前', value: 60 },
+  { label: '1 天前', value: 1440 },
+  { label: '自定义...', value: -1 },
 ]
 
 const CALENDAR_OPTIONS = [
-  { label: 'Default', value: 'Default', color: '#2196F3' },
-  { label: 'Work', value: 'Work', color: '#FF9800' },
-  { label: 'Home', value: 'Home', color: '#4CAF50' },
+  { label: '默认日历', value: 'Default', color: '#2196F3' },
+  { label: '工作', value: 'Work', color: '#FF9800' },
+  { label: '家庭', value: 'Home', color: '#4CAF50' },
 ]
 
 export const AddEventScreen = () => {
@@ -57,21 +56,21 @@ export const AddEventScreen = () => {
   const route = useRoute<any>()
   const { initialDate } = route.params || {}
 
-  // 1. Initialize Logic Hook
   const { form, labels, actions } = useEventForm(initialDate)
-
-  // 2. UI Control State (Modals)
   const [modalType, setModalType] = useState<
     'repeat' | 'repeat_custom' | 'alarm' | 'alarm_custom' | 'calendar' | null
   >(null)
 
-  // 3. Header Configuration
+  // ✨ 关键修复：仅设置按钮，不修改样式属性（样式已在 AppNavigator 中静态定义）
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: 'New Event',
       headerLeft: () => (
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Text style={styles.closeIcon}>✕</Text>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.headerBtnLeft}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} // 扩大点击区域
+        >
+          <Text style={styles.headerBtnTextCancel}>取消</Text>
         </TouchableOpacity>
       ),
       headerRight: () => (
@@ -79,17 +78,21 @@ export const AddEventScreen = () => {
           onPress={() => {
             if (actions.saveEvent()) navigation.goBack()
           }}
-          style={styles.headerBtn}
-          disabled={!form.title.trim()}>
-          <Text style={[styles.checkIcon, !form.title.trim() && styles.disabledIcon]}>✓</Text>
+          style={styles.headerBtnRight}
+          disabled={!form.title.trim()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={[styles.headerBtnTextSave, !form.title.trim() && styles.disabledText]}>
+            添加
+          </Text>
         </TouchableOpacity>
       ),
-      headerStyle: { backgroundColor: '#f2f2f6', shadowOpacity: 0 },
     })
   }, [navigation, form.title, actions])
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <TitleLocationGroup
           title={form.title}
@@ -125,17 +128,14 @@ export const AddEventScreen = () => {
         />
       </ScrollView>
 
-      {/* --- Modals --- */}
-
-      {/* 1. Repeat Selection */}
+      {/* Modals */}
       <SelectionModal
         visible={modalType === 'repeat'}
-        title="Repeat"
+        title="重复频率"
         options={REPEAT_PRESETS as any}
         selectedValue={form.rruleFreq}
         onSelect={val => {
           form.setRruleFreq(val as RecurrenceFrequency | null)
-          // Reset custom fields when picking a preset
           form.setCustomInterval('1')
           form.setCustomUntil(null)
         }}
@@ -144,10 +144,9 @@ export const AddEventScreen = () => {
         customValueToken="CUSTOM"
       />
 
-      {/* 2. Custom Repeat Config */}
       <CustomRepeatModal
         visible={modalType === 'repeat_custom'}
-        onClose={() => setModalType(null)} // Or back to 'repeat'
+        onClose={() => setModalType(null)}
         onConfirm={(freq, interval, until) => {
           form.setRruleFreq(freq)
           form.setCustomInterval(interval)
@@ -158,10 +157,9 @@ export const AddEventScreen = () => {
         initialUntil={form.customUntil}
       />
 
-      {/* 3. Calendar Selection */}
       <SelectionModal
         visible={modalType === 'calendar'}
-        title="Calendar"
+        title="选择日历"
         options={CALENDAR_OPTIONS}
         selectedValue={form.selectedCalendar.value}
         onSelect={val => {
@@ -171,10 +169,9 @@ export const AddEventScreen = () => {
         onClose={() => setModalType(null)}
       />
 
-      {/* 4. Alarm Selection */}
       <SelectionModal
         visible={modalType === 'alarm'}
-        title="Alert"
+        title="提醒"
         options={ALARM_PRESETS}
         selectedValue={form.alarmOffset}
         onSelect={val => form.setAlarmOffset(val)}
@@ -183,7 +180,6 @@ export const AddEventScreen = () => {
         customValueToken={-1}
       />
 
-      {/* 5. Custom Alarm Config */}
       <CustomAlarmModal
         visible={modalType === 'alarm_custom'}
         onClose={() => setModalType(null)}
@@ -195,8 +191,9 @@ export const AddEventScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f2f2f6' },
-  headerBtn: { padding: 8 },
-  closeIcon: { fontSize: 22, color: '#8e8e93', fontWeight: 'bold' },
-  checkIcon: { fontSize: 24, color: '#007AFF', fontWeight: 'bold' },
-  disabledIcon: { color: '#d1d1d6' },
+  headerBtnLeft: { paddingLeft: 0, justifyContent: 'center' }, // 这里的 padding 由 header 容器控制，设为 0 更安全
+  headerBtnRight: { paddingRight: 0, justifyContent: 'center' },
+  headerBtnTextCancel: { fontSize: 17, color: '#007AFF' },
+  headerBtnTextSave: { fontSize: 17, color: '#007AFF', fontWeight: '600' },
+  disabledText: { color: '#8e8e93', opacity: 0.5 },
 })

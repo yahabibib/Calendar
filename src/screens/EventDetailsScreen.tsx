@@ -1,76 +1,69 @@
 import React, { useLayoutEffect } from 'react'
-import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native'
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native'
-import { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import { RootStackParamList } from '../types/navigation'
+import { ScrollView, StyleSheet, TouchableOpacity, Text, View } from 'react-native'
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native'
+import { RootStackParamList } from '../navigation/AppNavigator'
 import { useEventStore } from '../store/eventStore'
-import { COLORS, SPACING } from '../theme'
 
-// 定义路由和导航类型
+// 引入积木组件
+import { DetailHeader } from '../features/event/details/DetailHeader'
+import { DetailTimeCard } from '../features/event/details/DetailTimeCard'
+import { LocationMapCard } from '../features/event/details/LocationMapCard'
+import { MetaInfoCard } from '../features/event/details/MetaInfoCard'
+import { ActionFooter } from '../features/event/details/ActionFooter'
+
 type EventDetailsRouteProp = RouteProp<RootStackParamList, 'EventDetails'>
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>
 
 export const EventDetailsScreen = () => {
+  const navigation = useNavigation<any>()
   const route = useRoute<EventDetailsRouteProp>()
-  const navigation = useNavigation<NavigationProp>()
-  const { eventId } = route.params
 
-  // 从 Store 中查找当前 ID 的事件
-  const event = useEventStore(state => state.events.find(e => e.id === eventId))
-  const deleteEvent = useEventStore(state => state.deleteEvent)
+  // 获取最新数据
+  const initialEvent = route.params.event
+  const event =
+    useEventStore(state => state.events.find(e => e.id === initialEvent.id)) || initialEvent
+  const removeEvent = useEventStore(state => state.removeEvent)
 
-  // 如果找不到事件（比如被删除了），处理防崩溃
-  if (!event) return null
-
-  // --- 配置顶部导航栏按钮 ---
+  // 1. 配置 Header
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity
-          onPress={() => navigation.navigate('AddEvent', { event })} // 跳转去编辑，带上参数
-        >
-          <Text style={{ color: COLORS.primary, fontSize: 16, fontWeight: '600' }}>编辑</Text>
+          onPress={() => navigation.navigate('AddEvent', { event })}
+          style={styles.headerBtn}>
+          <Text style={styles.headerEdit}>编辑</Text>
         </TouchableOpacity>
       ),
+      headerLeft: () => (
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+          <Text style={styles.headerClose}>关闭</Text>
+        </TouchableOpacity>
+      ),
+      title: '', // 详情页通常不需要中间的标题，因为 DetailHeader 已经有了大标题
+      headerStyle: { backgroundColor: '#f2f2f6', shadowOpacity: 0, elevation: 0 },
     })
   }, [navigation, event])
 
-  // --- 删除逻辑 ---
   const handleDelete = () => {
-    Alert.alert('确认删除', '删除后无法恢复，确定要删除吗？', [
-      { text: '取消', style: 'cancel' },
-      {
-        text: '删除',
-        style: 'destructive',
-        onPress: () => {
-          deleteEvent(eventId)
-          navigation.goBack() // 删完回上一页
-        },
-      },
-    ])
+    removeEvent(event.id)
+    navigation.goBack()
   }
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.headerSection}>
-        <Text style={styles.title}>{event.title}</Text>
-        <Text style={styles.time}>{new Date(event.startTime).toLocaleString()}</Text>
-      </View>
+      {/* 1. 头部大标题 */}
+      <DetailHeader title={event.title} color={event.color || '#2196F3'} />
 
-      <View style={styles.section}>
-        <Text style={styles.label}>地点</Text>
-        <Text style={styles.content}>{event.location || '无'}</Text>
-      </View>
+      {/* 2. 时间卡片 */}
+      <DetailTimeCard event={event} />
 
-      <View style={styles.section}>
-        <Text style={styles.label}>备注</Text>
-        <Text style={styles.content}>{event.description || '无'}</Text>
-      </View>
+      {/* 3. 地图卡片 (仅当有位置时显示，或者未来 AI 推荐地点时显示) */}
+      <LocationMapCard location={event.location} />
 
-      {/* 底部红色删除按钮 */}
-      <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-        <Text style={styles.deleteText}>删除此日程</Text>
-      </TouchableOpacity>
+      {/* 4. 详细信息卡片 (备注/URL/归属) */}
+      <MetaInfoCard event={event} />
+
+      {/* 5. 底部删除 */}
+      <ActionFooter onDelete={handleDelete} />
     </ScrollView>
   )
 }
@@ -78,50 +71,9 @@ export const EventDetailsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-    padding: SPACING.md,
+    backgroundColor: '#f2f2f6', // 保持统一的灰色背景
   },
-  headerSection: {
-    marginBottom: SPACING.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    paddingBottom: SPACING.md,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
-  time: {
-    fontSize: 14,
-    color: COLORS.secondary,
-  },
-  section: {
-    marginBottom: SPACING.lg,
-  },
-  label: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    marginBottom: SPACING.xs,
-  },
-  content: {
-    fontSize: 16,
-    color: COLORS.text,
-    lineHeight: 24,
-  },
-  deleteButton: {
-    marginTop: 40,
-    backgroundColor: '#fff0f0',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ffccc7',
-  },
-  deleteText: {
-    color: COLORS.danger,
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  headerBtn: { padding: 10 },
+  headerEdit: { fontSize: 17, color: '#007AFF', fontWeight: '600' },
+  headerClose: { fontSize: 17, color: '#007AFF' },
 })

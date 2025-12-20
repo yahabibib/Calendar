@@ -8,9 +8,9 @@ import {
   ScrollView,
   TextInput,
   Switch,
-  SafeAreaView,
+  Platform,
 } from 'react-native'
-import { RecurrenceFrequency } from '../../../types/event'
+import { RecurrenceFrequency } from '../../../../types/event'
 import { DateTimeRow } from '../../atoms/DateTimeRow'
 import { addHours } from 'date-fns'
 
@@ -39,12 +39,10 @@ export const CustomRepeatModal: React.FC<CustomRepeatModalProps> = ({
   initialInterval,
   initialUntil,
 }) => {
-  // 内部状态，仅在 Modal 打开期间有效
   const [freq, setFreq] = useState<RecurrenceFrequency>('DAILY')
   const [interval, setInterval] = useState('1')
   const [until, setUntil] = useState<Date | null>(null)
 
-  // 当 Modal 打开时，同步初始值
   useEffect(() => {
     if (visible) {
       setFreq(initialFreq || 'DAILY')
@@ -116,15 +114,19 @@ export const CustomRepeatModal: React.FC<CustomRepeatModalProps> = ({
               date={until || new Date()}
               onChange={setUntil}
               mode="date"
-              // 如果 until 为空，显示灰色或默认值，这里简化处理
             />
             <View style={styles.separator} />
-            <View style={[styles.row, { borderBottomWidth: 0 }]}>
+
+            {/* ✨ Switch 垂直居中修复版 */}
+            <View style={[styles.row, { borderBottomWidth: 0, paddingVertical: 10 }]}>
               <Text style={styles.label}>永不结束</Text>
-              <Switch
-                value={until === null}
-                onValueChange={val => setUntil(val ? null : addHours(new Date(), 24))}
-              />
+              {/* 使用 View 包裹并 justify-center 确保双重保险 */}
+              <View style={{ justifyContent: 'center' }}>
+                <Switch
+                  value={until === null}
+                  onValueChange={val => setUntil(val ? null : addHours(new Date(), 24))}
+                />
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -143,7 +145,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#f2f2f6', // iOS Modal 顶部通常也是灰色
+    backgroundColor: '#f2f2f6',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: '#c6c6c8',
   },
@@ -160,13 +162,17 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     overflow: 'hidden',
   },
+
+  // ✨ 通用行样式优化：移除固定高度，使用 minHeight + padding
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'center', // 垂直居中核心
     paddingHorizontal: 16,
-    height: 48,
+    minHeight: 48, // 保证最小高度，但允许 Switch 撑开
+    paddingVertical: 8, // 增加呼吸感
   },
+
   separator: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: '#c6c6c8',
@@ -174,7 +180,6 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: 17, color: 'black' },
 
-  // 频率选择样式
   freqRow: { flexDirection: 'row' },
   freqChip: {
     paddingHorizontal: 12,
@@ -187,7 +192,6 @@ const styles = StyleSheet.create({
   freqText: { fontSize: 15, color: 'black' },
   freqTextSelected: { color: 'white', fontWeight: '500' },
 
-  // 间隔输入样式
   intervalRow: { flexDirection: 'row', alignItems: 'center' },
   intervalInput: {
     width: 60,

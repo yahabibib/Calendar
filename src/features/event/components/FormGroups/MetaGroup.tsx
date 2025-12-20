@@ -1,4 +1,3 @@
-// src/features/event/components/FormGroups/MetaGroup.tsx
 import React from 'react'
 import { View, TextInput, StyleSheet } from 'react-native'
 
@@ -28,7 +27,7 @@ export const MetaGroup: React.FC<MetaGroupProps> = ({
       <View style={styles.separator} />
       <TextInput
         style={[styles.input, styles.textArea]}
-        placeholder="Notes"
+        placeholder="备注"
         value={description}
         onChangeText={onChangeDescription}
         multiline
@@ -36,7 +35,7 @@ export const MetaGroup: React.FC<MetaGroupProps> = ({
     </View>
   )
 }
-
+// styles 保持不变
 const styles = StyleSheet.create({
   group: {
     marginTop: 20,
@@ -52,14 +51,6 @@ const styles = StyleSheet.create({
     color: 'black',
     backgroundColor: 'white',
   },
-  textArea: {
-    minHeight: 100,
-    paddingTop: 12,
-    textAlignVertical: 'top',
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#c6c6c8',
-    marginLeft: 16,
-  },
+  textArea: { minHeight: 100, paddingTop: 12, textAlignVertical: 'top' },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#c6c6c8', marginLeft: 16 },
 })

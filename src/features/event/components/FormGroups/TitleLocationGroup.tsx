@@ -1,4 +1,3 @@
-// src/features/event/components/FormGroups/TitleLocationGroup.tsx
 import React from 'react'
 import { View, TextInput, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native'
 
@@ -19,7 +18,7 @@ export const TitleLocationGroup: React.FC<TitleLocationGroupProps> = ({
     <View style={styles.group}>
       <TextInput
         style={[styles.input, styles.titleInput]}
-        placeholder="Title"
+        placeholder="标题"
         value={title}
         onChangeText={onChangeTitle}
         clearButtonMode="while-editing"
@@ -28,20 +27,20 @@ export const TitleLocationGroup: React.FC<TitleLocationGroupProps> = ({
       <View style={styles.locationRow}>
         <TextInput
           style={[styles.input, styles.locationInput]}
-          placeholder="Location"
+          placeholder="位置"
           value={location}
           onChangeText={onChangeLocation}
         />
         <TouchableOpacity
           style={styles.iconBtn}
-          onPress={() => Alert.alert('Map Integration', 'Call Apple MapKit here')}>
+          onPress={() => Alert.alert('地图功能', '此处可调用 Apple MapKit')}>
           <Text style={{ fontSize: 18 }}>📍</Text>
         </TouchableOpacity>
       </View>
     </View>
   )
 }
-
+// styles 保持不变 (见上文)
 const styles = StyleSheet.create({
   group: {
     marginTop: 20,
@@ -57,25 +56,14 @@ const styles = StyleSheet.create({
     color: 'black',
     backgroundColor: 'white',
   },
-  titleInput: {
-    fontSize: 18,
-    fontWeight: '500',
-  },
+  titleInput: { fontSize: 18, fontWeight: '500' },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingRight: 10,
   },
-  locationInput: {
-    flex: 1,
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#c6c6c8',
-    marginLeft: 16,
-  },
-  iconBtn: {
-    padding: 8,
-  },
+  locationInput: { flex: 1 },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#c6c6c8', marginLeft: 16 },
+  iconBtn: { padding: 8 },
 })

@@ -1,4 +1,3 @@
-// src/features/event/components/FormGroups/OptionsGroup.tsx
 import React from 'react'
 import { View, StyleSheet } from 'react-native'
 import { ListRow } from '../../atoms/ListRow'
@@ -24,22 +23,22 @@ export const OptionsGroup: React.FC<OptionsGroupProps> = ({
 }) => {
   return (
     <View style={styles.group}>
-      <ListRow label="Repeat" value={repeatLabel} onPress={onPressRepeat} />
+      <ListRow label="重复" value={repeatLabel} onPress={onPressRepeat} />
       <View style={styles.separator} />
 
       <ListRow
-        label="Calendar"
+        label="日历"
         value={calendarLabel}
         colorDot={calendarColor}
         onPress={onPressCalendar}
       />
       <View style={styles.separator} />
 
-      <ListRow label="Alert" value={alarmLabel} onPress={onPressAlarm} isLast />
+      <ListRow label="提醒" value={alarmLabel} onPress={onPressAlarm} isLast />
     </View>
   )
 }
-
+// styles 保持不变
 const styles = StyleSheet.create({
   group: {
     marginTop: 20,
@@ -48,9 +47,5 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     overflow: 'hidden',
   },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#c6c6c8',
-    marginLeft: 16,
-  },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#c6c6c8', marginLeft: 16 },
 })
