@@ -224,6 +224,7 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
 
   const tapGesture = Gesture.Tap()
     .enabled(!isEditing)
+    .maxDuration(250)
     .onEnd(() => {
       runOnJS(onPress)(event)
     })
