@@ -3,8 +3,6 @@ import { View, StyleSheet } from 'react-native'
 import { ListRow } from '../../atoms/ListRow'
 
 interface OptionsGroupProps {
-  repeatLabel: string
-  onPressRepeat: () => void
   calendarLabel: string
   calendarColor: string
   onPressCalendar: () => void
@@ -13,8 +11,6 @@ interface OptionsGroupProps {
 }
 
 export const OptionsGroup: React.FC<OptionsGroupProps> = ({
-  repeatLabel,
-  onPressRepeat,
   calendarLabel,
   calendarColor,
   onPressCalendar,
@@ -23,9 +19,6 @@ export const OptionsGroup: React.FC<OptionsGroupProps> = ({
 }) => {
   return (
     <View style={styles.group}>
-      <ListRow label="重复" value={repeatLabel} onPress={onPressRepeat} />
-      <View style={styles.separator} />
-
       <ListRow
         label="日历"
         value={calendarLabel}
@@ -38,7 +31,7 @@ export const OptionsGroup: React.FC<OptionsGroupProps> = ({
     </View>
   )
 }
-// styles 保持不变
+
 const styles = StyleSheet.create({
   group: {
     marginTop: 20,

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { StyleSheet, View, Text, TouchableOpacity, Vibration, Dimensions } from 'react-native'
+import { StyleSheet, View, Text, TouchableOpacity, Dimensions } from 'react-native'
 import { GestureDetector, Gesture } from 'react-native-gesture-handler'
 import Animated, {
   useSharedValue,
@@ -7,7 +7,10 @@ import Animated, {
   withSpring,
   withTiming,
   runOnJS,
+  useAnimatedReaction,
 } from 'react-native-reanimated'
+// ✨ 确认使用：react-native-haptic-feedback
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback'
 import { addMinutes, setHours, setMinutes, startOfDay, addDays } from 'date-fns'
 import { CalendarEvent } from '../../../../../types/event'
 import { HOUR_HEIGHT } from '../../../../../theme/layout'
@@ -18,10 +21,15 @@ import { useEventStore } from '../../../../../store/eventStore'
 const SNAP_MINUTES = 15
 const GRID_HEIGHT = (SNAP_MINUTES / 60) * HOUR_HEIGHT
 const MIN_HEIGHT = GRID_HEIGHT
-const HANDLE_SIZE = 12
-const MENU_HEIGHT = 40
 const MENU_OFFSET = 60
-// 🗑️ 删除 EDGE_THRESHOLD, SCROLL_COOLDOWN 等无用常量
+const MENU_HEIGHT = 40
+const HANDLE_SIZE = 12
+
+// ✨ 震动配置
+const hapticOptions = {
+  enableVibrateFallback: true,
+  ignoreAndroidSystemSettings: false,
+}
 
 interface LayoutProps {
   top: number
@@ -45,7 +53,6 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
   onUpdate,
   onPress,
 }) => {
-  // 🗑️ 删除 triggerPageScroll 的解构
   const { editingEventId, setEditingEventId, dayColumnWidth } = useWeekViewContext()
   const removeEvent = useEventStore(state => state.removeEvent)
 
@@ -59,13 +66,11 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
   const startTop = useSharedValue(0)
   const startHeight = useSharedValue(0)
   const startLeft = useSharedValue(0)
-  // 🗑️ 删除 lastScrollTime
 
   const isDraggingBody = useSharedValue(false)
   const isResizingTop = useSharedValue(false)
   const isResizingBottom = useSharedValue(false)
 
-  // 基础布局同步
   useEffect(() => {
     if (!isEditing && !isDraggingBody.value) {
       top.value = withTiming(layout.top, { duration: 200 })
@@ -75,15 +80,28 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     }
   }, [layout, isEditing, top, height, left, width, isDraggingBody])
 
+  // --- Haptics Logic ---
+  const triggerTick = () => {
+    ReactNativeHapticFeedback.trigger('impactLight', hapticOptions)
+  }
+
+  useAnimatedReaction(
+    () => Math.round(top.value / GRID_HEIGHT),
+    (current, prev) => {
+      if (prev !== null && current !== prev) {
+        if (isDraggingBody.value || isResizingTop.value || isResizingBottom.value) {
+          runOnJS(triggerTick)()
+        }
+      }
+    },
+  )
+
   const processFinalUpdate = (
     startHour: number,
     startMinute: number,
     durationMinutes: number,
-    finalLeft: number,
+    dayOffset: number,
   ) => {
-    const offsetX = finalLeft - layout.left
-    const dayOffset = Math.round(offsetX / dayColumnWidth)
-
     let newStart = setHours(startOfDay(dayDate), startHour)
     newStart = setMinutes(newStart, startMinute)
     if (dayOffset !== 0) {
@@ -92,8 +110,6 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     const newEnd = addMinutes(newStart, durationMinutes)
     onUpdate(event.id, newStart, newEnd)
   }
-
-  // 🗑️ 删除 handleEdgeTrigger 函数
 
   const commitUpdate = () => {
     'worklet'
@@ -106,15 +122,22 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     const startMinute = totalStartMinutes % 60
     const durationMinutes = Math.round((finalHeight / HOUR_HEIGHT) * 60)
 
-    runOnJS(processFinalUpdate)(startHour, startMinute, durationMinutes, finalLeft)
+    const offsetX = finalLeft - layout.left
+    const safeOffsetX = isNaN(offsetX) ? 0 : offsetX
+    const safeWidth = !dayColumnWidth || dayColumnWidth === 0 ? 1 : dayColumnWidth
+    const dayOffset = Math.round(safeOffsetX / safeWidth)
+
+    runOnJS(processFinalUpdate)(startHour, startMinute, durationMinutes, dayOffset)
   }
 
   // --- 手势 ---
   const longPressGesture = Gesture.LongPress()
     .minDuration(300)
+    // ✨ 允许一定程度的手抖，防止因为手指微动导致长按失效
+    .maxDistance(100)
     .onStart(() => {
       runOnJS(setEditingEventId)(event.id)
-      runOnJS(Vibration.vibrate)(50)
+      runOnJS(ReactNativeHapticFeedback.trigger)('impactMedium', hapticOptions)
     })
 
   const dragBodyGesture = Gesture.Pan()
@@ -127,17 +150,20 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
       startLeft.value = left.value
     })
     .onUpdate(e => {
-      // Y 轴吸附
       const rawTop = startTop.value + e.translationY
-      const snappedTop = Math.round(rawTop / GRID_HEIGHT) * GRID_HEIGHT
-      top.value = Math.max(0, snappedTop)
+      if (!isNaN(rawTop)) {
+        const snappedTop = Math.round(rawTop / GRID_HEIGHT) * GRID_HEIGHT
+        top.value = Math.max(0, snappedTop)
+      }
 
-      // ✨ 纯净的 X 轴跟随：只有这一行！
-      // ⚠️ 绝对不要在这里写 runOnJS 或 absoluteX 判断
-      left.value = startLeft.value + e.translationX
+      const nextLeft = startLeft.value + e.translationX
+      if (!isNaN(nextLeft)) {
+        left.value = nextLeft
+      }
     })
     .onEnd(() => {
       isDraggingBody.value = false
+      runOnJS(ReactNativeHapticFeedback.trigger)('impactLight', hapticOptions)
       commitUpdate()
     })
 
@@ -148,9 +174,11 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
       isResizingTop.value = true
       startTop.value = top.value
       startHeight.value = height.value
+      runOnJS(ReactNativeHapticFeedback.trigger)('selection', hapticOptions)
     })
     .onUpdate(e => {
       const deltaY = e.translationY
+      if (isNaN(deltaY)) return
       let newTop = startTop.value + deltaY
       newTop = Math.round(newTop / GRID_HEIGHT) * GRID_HEIGHT
       const maxTop = startTop.value + startHeight.value - MIN_HEIGHT
@@ -171,9 +199,11 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     .onStart(() => {
       isResizingBottom.value = true
       startHeight.value = height.value
+      runOnJS(ReactNativeHapticFeedback.trigger)('selection', hapticOptions)
     })
     .onUpdate(e => {
       const newHeight = startHeight.value + e.translationY
+      if (isNaN(newHeight)) return
       const snappedHeight = Math.round(newHeight / GRID_HEIGHT) * GRID_HEIGHT
       height.value = Math.max(MIN_HEIGHT, snappedHeight)
     })
@@ -187,13 +217,14 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     .maxDuration(250)
     .onEnd(() => {
       runOnJS(onPress)(event)
+      runOnJS(ReactNativeHapticFeedback.trigger)('selection', hapticOptions)
     })
 
   const bodyComposedGesture = isEditing
     ? Gesture.Race(dragBodyGesture, longPressGesture)
     : Gesture.Race(longPressGesture, tapGesture)
 
-  // 样式保持不变
+  // 样式部分保持不变...
   const containerStyle = useAnimatedStyle(() => ({
     top: top.value,
     left: left.value,
@@ -225,16 +256,22 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
 
   const handleDelete = () => {
     setEditingEventId(null)
+    runOnJS(ReactNativeHapticFeedback.trigger)('notificationSuccess', hapticOptions)
     removeEvent(event.id)
   }
 
   const handleCopy = () => {
     setEditingEventId(null)
+    runOnJS(ReactNativeHapticFeedback.trigger)('notificationSuccess', hapticOptions)
     alert('已复制')
   }
 
   return (
-    <Animated.View style={containerStyle}>
+    <Animated.View
+      style={containerStyle}
+      // ✨✨✨ 核心优化：HitSlop (热区扩大) ✨✨✨
+      // 即使手指按在卡片外围 10px，也能激活卡片，避免按到背景触发创建
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
       <Animated.View style={[styles.menuContainer, menuStyle]}>
         <TouchableOpacity style={styles.menuItem} onPress={handleCopy}>
           <Text style={styles.menuText}>拷贝</Text>

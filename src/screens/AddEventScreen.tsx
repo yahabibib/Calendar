@@ -8,6 +8,7 @@ import {
   Platform,
 } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
+import { format } from 'date-fns' // ✨ 引入 format
 
 // Hooks & Types
 import { useEventForm } from '../features/event/hooks/useEventForm'
@@ -23,8 +24,9 @@ import { MetaGroup } from '../features/event/components/FormGroups/MetaGroup'
 import { SelectionModal } from '../features/event/components/Modals/SelectionModal'
 import { CustomRepeatModal } from '../features/event/components/Modals/CustomRepeatModal'
 import { CustomAlarmModal } from '../features/event/components/Modals/CustomAlarmModal'
+import { EndRepeatModal } from '../features/event/components/Modals/EndRepeatModal'
+import { RepeatGroup } from '../features/event/components/FormGroups/RepeatGroup'
 
-// Constants
 const REPEAT_PRESETS = [
   { label: '从不', value: null },
   { label: '每天', value: 'DAILY' },
@@ -57,19 +59,18 @@ export const AddEventScreen = () => {
   const { initialDate } = route.params || {}
 
   const { form, labels, actions } = useEventForm(initialDate)
+  // ✨ 增加 'end_repeat' 类型
   const [modalType, setModalType] = useState<
-    'repeat' | 'repeat_custom' | 'alarm' | 'alarm_custom' | 'calendar' | null
+    'repeat' | 'repeat_custom' | 'alarm' | 'alarm_custom' | 'calendar' | 'end_repeat' | null
   >(null)
 
-  // ✨ 关键修复：仅设置按钮，不修改样式属性（样式已在 AppNavigator 中静态定义）
   useLayoutEffect(() => {
     navigation.setOptions({
       headerLeft: () => (
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.headerBtnLeft}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} // 扩大点击区域
-        >
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={styles.headerBtnTextCancel}>取消</Text>
         </TouchableOpacity>
       ),
@@ -88,6 +89,15 @@ export const AddEventScreen = () => {
       ),
     })
   }, [navigation, form.title, actions])
+
+  // ✨ 计算 UI 显示逻辑
+  const showEndRepeat = form.rruleFreq !== null // 只有设置了重复才显示结束选项
+
+  // 优化重复文案：去掉包含的截止日期信息，因为我们现在分行显示了
+  const cleanRepeatLabel = labels.repeatLabel.split(' (截止')[0]
+
+  // 结束重复文案
+  const endRepeatLabel = form.customUntil ? format(form.customUntil, 'yyyy年M月d日') : '永不'
 
   return (
     <KeyboardAvoidingView
@@ -110,9 +120,14 @@ export const AddEventScreen = () => {
           onEndDateChange={form.setEndDate}
         />
 
-        <OptionsGroup
-          repeatLabel={labels.repeatLabel}
+        <RepeatGroup
+          repeatLabel={cleanRepeatLabel}
           onPressRepeat={() => setModalType('repeat')}
+          endRepeatLabel={showEndRepeat ? endRepeatLabel : null}
+          onPressEndRepeat={() => setModalType('end_repeat')}
+        />
+
+        <OptionsGroup
           calendarLabel={form.selectedCalendar.label}
           calendarColor={form.selectedCalendar.color}
           onPressCalendar={() => setModalType('calendar')}
@@ -136,12 +151,20 @@ export const AddEventScreen = () => {
         selectedValue={form.rruleFreq}
         onSelect={val => {
           form.setRruleFreq(val as RecurrenceFrequency | null)
+          // 切换频率时，重置一些默认值，但保留 Until 逻辑
           form.setCustomInterval('1')
-          form.setCustomUntil(null)
         }}
         onClose={() => setModalType(null)}
         onCustomSelect={() => setModalType('repeat_custom')}
         customValueToken="CUSTOM"
+      />
+
+      {/* ✨ 新增：结束重复设置弹窗 */}
+      <EndRepeatModal
+        visible={modalType === 'end_repeat'}
+        initialUntil={form.customUntil}
+        onClose={() => setModalType(null)}
+        onConfirm={date => form.setCustomUntil(date)}
       />
 
       <CustomRepeatModal
@@ -191,7 +214,7 @@ export const AddEventScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f2f2f6' },
-  headerBtnLeft: { paddingLeft: 0, justifyContent: 'center' }, // 这里的 padding 由 header 容器控制，设为 0 更安全
+  headerBtnLeft: { paddingLeft: 0, justifyContent: 'center' },
   headerBtnRight: { paddingRight: 0, justifyContent: 'center' },
   headerBtnTextCancel: { fontSize: 17, color: '#007AFF' },
   headerBtnTextSave: { fontSize: 17, color: '#007AFF', fontWeight: '600' },

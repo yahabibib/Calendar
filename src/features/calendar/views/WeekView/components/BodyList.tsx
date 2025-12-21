@@ -1,6 +1,6 @@
 import React, { memo, useMemo, useCallback } from 'react'
-import { View, StyleSheet, TouchableWithoutFeedback } from 'react-native'
-import { FlatList } from 'react-native-gesture-handler' // 保持 RNGH
+import { View, StyleSheet } from 'react-native'
+import { FlatList } from 'react-native-gesture-handler'
 import { isSameDay, isValid, setHours, setMinutes } from 'date-fns'
 import { useNavigation } from '@react-navigation/native'
 import { useWeekViewContext } from '../WeekViewContext'
@@ -8,9 +8,12 @@ import { CurrentTimeIndicator } from '../../../components/CurrentTimeIndicator'
 import { HOUR_HEIGHT } from '../../../../../theme/layout'
 import { EventColumn } from './EventColumn'
 import { DragCreateWrapper } from './DragCreateWrapper'
+// ✨ 引入新工具
+import { getEventsForDate } from '../../../../../utils/recurrence'
 
 const DayBodyItem = memo(({ date, width, events, onEventPress, onCreateEvent }: any) => {
   const isToday = useMemo(() => isValid(date) && isSameDay(date, new Date()), [date])
+  // 这里的 events 已经是 getEventsForDate 计算好的当日实例列表了
   const regularEvents = useMemo(() => events.filter((e: any) => !e.isAllDay), [events])
 
   return (
@@ -43,7 +46,7 @@ export const BodyList = () => {
   const {
     dayList,
     dayColumnWidth,
-    events,
+    events, // 这是 Store 里的全量元数据
     bodyListRef,
     onBodyScroll,
     onBodyBeginDrag,
@@ -70,61 +73,46 @@ export const BodyList = () => {
 
   return (
     <View style={{ flex: 1 }}>
-      <TouchableWithoutFeedback
-        onPress={() => {
-          if (editingEventId) setEditingEventId(null)
-        }}>
-        <View style={{ flex: 1 }}>
-          {isEditing && (
-            <TouchableWithoutFeedback onPress={() => setEditingEventId(null)}>
-              <View style={StyleSheet.absoluteFill} />
-            </TouchableWithoutFeedback>
-          )}
-
-          <FlatList
-            ref={bodyListRef}
-            data={dayList}
-            keyExtractor={item => item.toISOString()}
-            renderItem={({ item }) => (
-              <DayBodyItem
-                date={item}
-                width={dayColumnWidth}
-                events={events.filter(
-                  (e: any) =>
-                    isValid(new Date(e.startDate)) && isSameDay(new Date(e.startDate), item),
-                )}
-                onEventPress={onEventPress}
-                onCreateEvent={handleCreateEvent}
-              />
-            )}
-            horizontal
-            snapToInterval={isWideScreen ? undefined : dayColumnWidth}
-            decelerationRate="fast"
-            getItemLayout={(data, index) => ({
-              length: dayColumnWidth,
-              offset: dayColumnWidth * index,
-              index,
-            })}
-            // ✨ 回退：编辑时锁死滚动，保证绝对稳定
-            scrollEnabled={!isEditing}
-            removeClippedSubviews={!isEditing}
-            onScroll={onBodyScroll}
-            onScrollBeginDrag={onBodyBeginDrag}
-            onMomentumScrollEnd={onScrollEnd}
-            onScrollEndDrag={onScrollEnd}
-            scrollEventThrottle={16}
-            onViewableItemsChanged={onViewableItemsChanged}
-            showsHorizontalScrollIndicator={false}
-            initialScrollIndex={initialIndex}
-            onScrollToIndexFailed={info => {
-              const wait = new Promise(resolve => setTimeout(resolve, 500))
-              wait.then(() => {
-                bodyListRef.current?.scrollToIndex({ index: info.index, animated: false })
-              })
-            }}
+      <FlatList
+        ref={bodyListRef}
+        data={dayList}
+        keyExtractor={item => item.toISOString()}
+        renderItem={({ item }) => (
+          <DayBodyItem
+            date={item}
+            width={dayColumnWidth}
+            // ✨✨✨ 核心修改：使用 getEventsForDate 计算重复实例 ✨✨✨
+            // 之前的 filter 只能看到当天的日程，现在可以看到根据 RRULE 生成的未来日程
+            events={getEventsForDate(events, item)}
+            onEventPress={onEventPress}
+            onCreateEvent={handleCreateEvent}
           />
-        </View>
-      </TouchableWithoutFeedback>
+        )}
+        horizontal
+        snapToInterval={isWideScreen ? undefined : dayColumnWidth}
+        decelerationRate="fast"
+        getItemLayout={(data, index) => ({
+          length: dayColumnWidth,
+          offset: dayColumnWidth * index,
+          index,
+        })}
+        scrollEnabled={!isEditing}
+        removeClippedSubviews={false}
+        onScroll={onBodyScroll}
+        onScrollBeginDrag={onBodyBeginDrag}
+        onMomentumScrollEnd={onScrollEnd}
+        onScrollEndDrag={onScrollEnd}
+        scrollEventThrottle={16}
+        onViewableItemsChanged={onViewableItemsChanged}
+        showsHorizontalScrollIndicator={false}
+        initialScrollIndex={initialIndex}
+        onScrollToIndexFailed={info => {
+          const wait = new Promise(resolve => setTimeout(resolve, 500))
+          wait.then(() => {
+            bodyListRef.current?.scrollToIndex({ index: info.index, animated: false })
+          })
+        }}
+      />
     </View>
   )
 }
