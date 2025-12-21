@@ -1,6 +1,6 @@
 import React, { memo, useMemo, useCallback } from 'react'
 import { View, StyleSheet, TouchableWithoutFeedback } from 'react-native'
-import { FlatList } from 'react-native-gesture-handler'
+import { FlatList } from 'react-native-gesture-handler' // 保持 RNGH
 import { isSameDay, isValid, setHours, setMinutes } from 'date-fns'
 import { useNavigation } from '@react-navigation/native'
 import { useWeekViewContext } from '../WeekViewContext'
@@ -21,7 +21,6 @@ const DayBodyItem = memo(({ date, width, events, onEventPress, onCreateEvent }: 
         borderRightWidth: 1,
         borderRightColor: '#f5f5f5',
         position: 'relative',
-        // ✨ 关键修复: 允许子元素(拖拽中的日程)飞出格子
         overflow: 'visible',
         zIndex: 1,
       }}>
@@ -57,18 +56,14 @@ export const BodyList = () => {
     setEditingEventId,
   } = useWeekViewContext()
 
-  // 是否正在编辑事件
   const isEditing = editingEventId !== null
-
   const navigation = useNavigation<any>()
 
   const handleCreateEvent = useCallback(
     (timestamp: number, hour: number, minute: number) => {
       const baseDate = new Date(timestamp)
       const startDate = setMinutes(setHours(baseDate, hour), minute)
-      navigation.navigate('AddEvent', {
-        initialDate: startDate.toISOString(),
-      })
+      navigation.navigate('AddEvent', { initialDate: startDate.toISOString() })
     },
     [navigation],
   )
@@ -85,6 +80,7 @@ export const BodyList = () => {
               <View style={StyleSheet.absoluteFill} />
             </TouchableWithoutFeedback>
           )}
+
           <FlatList
             ref={bodyListRef}
             data={dayList}
@@ -109,8 +105,9 @@ export const BodyList = () => {
               offset: dayColumnWidth * index,
               index,
             })}
-            scrollEnabled={true}
-            removeClippedSubviews={false}
+            // ✨ 回退：编辑时锁死滚动，保证绝对稳定
+            scrollEnabled={!isEditing}
+            removeClippedSubviews={!isEditing}
             onScroll={onBodyScroll}
             onScrollBeginDrag={onBodyBeginDrag}
             onMomentumScrollEnd={onScrollEnd}

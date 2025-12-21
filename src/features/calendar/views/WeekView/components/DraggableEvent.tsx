@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { addMinutes, setHours, setMinutes, startOfDay, addDays } from 'date-fns'
 import { CalendarEvent } from '../../../../../types/event'
-import { HOUR_HEIGHT, TIME_AXIS_WIDTH } from '../../../../../theme/layout'
+import { HOUR_HEIGHT } from '../../../../../theme/layout'
 import { ScheduleEvent } from '../../../components/ScheduleEvent'
 import { useWeekViewContext } from '../WeekViewContext'
 import { useEventStore } from '../../../../../store/eventStore'
@@ -21,8 +21,7 @@ const MIN_HEIGHT = GRID_HEIGHT
 const HANDLE_SIZE = 12
 const MENU_HEIGHT = 40
 const MENU_OFFSET = 60
-const EDGE_THRESHOLD = 40
-const SCROLL_COOLDOWN = 1500
+// 🗑️ 删除 EDGE_THRESHOLD, SCROLL_COOLDOWN 等无用常量
 
 interface LayoutProps {
   top: number
@@ -46,20 +45,11 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
   onUpdate,
   onPress,
 }) => {
-  const {
-    editingEventId,
-    setEditingEventId,
-    dayColumnWidth,
-    scrollOffset,
-    startAutoScroll,
-    stopAutoScroll,
-    triggerPageScroll,
-  } = useWeekViewContext()
-
+  // 🗑️ 删除 triggerPageScroll 的解构
+  const { editingEventId, setEditingEventId, dayColumnWidth } = useWeekViewContext()
   const removeEvent = useEventStore(state => state.removeEvent)
 
   const isEditing = editingEventId === event.id
-  const screenWidth = Dimensions.get('window').width
 
   const top = useSharedValue(layout.top)
   const height = useSharedValue(layout.height)
@@ -69,16 +59,13 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
   const startTop = useSharedValue(0)
   const startHeight = useSharedValue(0)
   const startLeft = useSharedValue(0)
-
-  // ✨ 记录拖拽开始时的滚动偏移量
-  const startScrollOffset = useSharedValue(0)
+  // 🗑️ 删除 lastScrollTime
 
   const isDraggingBody = useSharedValue(false)
   const isResizingTop = useSharedValue(false)
   const isResizingBottom = useSharedValue(false)
 
-  const lastScrollTime = useSharedValue(0)
-
+  // 基础布局同步
   useEffect(() => {
     if (!isEditing && !isDraggingBody.value) {
       top.value = withTiming(layout.top, { duration: 200 })
@@ -106,12 +93,12 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     onUpdate(event.id, newStart, newEnd)
   }
 
+  // 🗑️ 删除 handleEdgeTrigger 函数
+
   const commitUpdate = () => {
     'worklet'
     const finalTop = top.value
     const finalHeight = height.value
-    // finalLeft 是包含了滚动补偿的，直接用它来计算位移是正确的，
-    // 因为它是卡片相对于整个 FlatList 内容区域(ContentSize) 的 X 坐标。
     const finalLeft = left.value
 
     const totalStartMinutes = Math.round((finalTop / HOUR_HEIGHT) * 60)
@@ -120,13 +107,6 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     const durationMinutes = Math.round((finalHeight / HOUR_HEIGHT) * 60)
 
     runOnJS(processFinalUpdate)(startHour, startMinute, durationMinutes, finalLeft)
-  }
-
-  const handleEdgeTrigger = (direction: -1 | 1) => {
-    // 震动反馈 (更轻微一点，提升质感)
-    Vibration.vibrate(10) // Android
-    // iOS 可以考虑使用 UIImpactFeedbackGenerator，这里先用 Vibration
-    triggerPageScroll(direction)
   }
 
   // --- 手势 ---
@@ -139,15 +119,12 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
 
   const dragBodyGesture = Gesture.Pan()
     .enabled(isEditing)
-    // 允许任意方向的移动激活
     .activeOffsetX([-5, 5])
     .activeOffsetY([-5, 5])
     .onStart(() => {
       isDraggingBody.value = true
       startTop.value = top.value
       startLeft.value = left.value
-      // ✨ 记录当前滚动位置
-      startScrollOffset.value = scrollOffset.value
     })
     .onUpdate(e => {
       // Y 轴吸附
@@ -155,29 +132,12 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
       const snappedTop = Math.round(rawTop / GRID_HEIGHT) * GRID_HEIGHT
       top.value = Math.max(0, snappedTop)
 
+      // ✨ 纯净的 X 轴跟随：只有这一行！
+      // ⚠️ 绝对不要在这里写 runOnJS 或 absoluteX 判断
       left.value = startLeft.value + e.translationX
-
-      // ✨✨✨ 修复 3: 边缘检测优化 ✨✨✨
-      const absoluteX = e.absoluteX
-      const now = Date.now()
-
-      // 增加冷却时间到 800ms，配合 Context 的锁，双重保险
-      if (now - lastScrollTime.value > 800) {
-        // 左边缘检测
-        if (absoluteX < TIME_AXIS_WIDTH + EDGE_THRESHOLD) {
-          lastScrollTime.value = now
-          runOnJS(handleEdgeTrigger)(-1)
-        }
-        // 右边缘检测
-        else if (absoluteX > screenWidth - EDGE_THRESHOLD) {
-          lastScrollTime.value = now
-          runOnJS(handleEdgeTrigger)(1)
-        }
-      }
     })
     .onEnd(() => {
       isDraggingBody.value = false
-      runOnJS(stopAutoScroll)() // 停止滚动
       commitUpdate()
     })
 
