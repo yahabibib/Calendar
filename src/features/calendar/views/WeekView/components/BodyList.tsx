@@ -84,6 +84,12 @@ export const BodyList = () => {
           if (editingEventId) setEditingEventId(null)
         }}>
         <View style={{ flex: 1 }}>
+          {/* 全局遮罩层：点击空白处退出编辑模式 */}
+          {isEditing && (
+            <TouchableWithoutFeedback onPress={() => setEditingEventId(null)}>
+              <View style={StyleSheet.absoluteFill} />
+            </TouchableWithoutFeedback>
+          )}
           <FlatList
             ref={bodyListRef}
             data={dayList}
@@ -108,6 +114,7 @@ export const BodyList = () => {
               offset: dayColumnWidth * index,
               index,
             })}
+            scrollEnabled={!isEditing}
             onScroll={onBodyScroll}
             onScrollBeginDrag={onBodyBeginDrag}
             onMomentumScrollEnd={onScrollEnd}

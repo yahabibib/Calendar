@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { StyleSheet, View, Text, TouchableOpacity, Vibration } from 'react-native'
+import { StyleSheet, View, Text, TouchableOpacity, Vibration, Dimensions } from 'react-native'
 import { GestureDetector, Gesture } from 'react-native-gesture-handler'
 import Animated, {
   useSharedValue,
@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { addMinutes, setHours, setMinutes, startOfDay, addDays } from 'date-fns'
 import { CalendarEvent } from '../../../../../types/event'
-import { HOUR_HEIGHT } from '../../../../../theme/layout'
+import { HOUR_HEIGHT, TIME_AXIS_WIDTH } from '../../../../../theme/layout'
 import { ScheduleEvent } from '../../../components/ScheduleEvent'
 import { useWeekViewContext } from '../WeekViewContext'
 import { useEventStore } from '../../../../../store/eventStore'
@@ -21,6 +21,8 @@ const MIN_HEIGHT = GRID_HEIGHT
 const HANDLE_SIZE = 12
 const MENU_HEIGHT = 40
 const MENU_OFFSET = 60
+const EDGE_THRESHOLD = 40 // 边缘感应距离
+const SCROLL_COOLDOWN = 1500 // 翻页冷却时间
 
 interface LayoutProps {
   top: number
@@ -44,10 +46,12 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
   onUpdate,
   onPress,
 }) => {
-  const { editingEventId, setEditingEventId, dayColumnWidth } = useWeekViewContext()
+  const { editingEventId, setEditingEventId, dayColumnWidth, triggerPageScroll } =
+    useWeekViewContext()
   const removeEvent = useEventStore(state => state.removeEvent)
 
   const isEditing = editingEventId === event.id
+  const screenWidth = Dimensions.get('window').width
 
   const top = useSharedValue(layout.top)
   const height = useSharedValue(layout.height)
@@ -57,11 +61,14 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
   const startTop = useSharedValue(0)
   const startHeight = useSharedValue(0)
   const startLeft = useSharedValue(0)
+  const lastScrollTime = useSharedValue(0)
 
   const isDraggingBody = useSharedValue(false)
   const isResizingTop = useSharedValue(false)
   const isResizingBottom = useSharedValue(false)
 
+  // --- 布局同步 ---
+  // 只有在非编辑、非拖拽时，才响应外部布局变化
   useEffect(() => {
     if (!isEditing && !isDraggingBody.value) {
       top.value = withTiming(layout.top, { duration: 200 })
@@ -71,6 +78,7 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     }
   }, [layout, isEditing, top, height, left, width, isDraggingBody])
 
+  // --- 手势更新 ---
   const processFinalUpdate = (
     startHour: number,
     startMinute: number,
@@ -84,6 +92,11 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     }
     const newEnd = addMinutes(newStart, durationMinutes)
     onUpdate(event.id, newStart, newEnd)
+  }
+
+  const handleEdgeTrigger = (direction: -1 | 1) => {
+    Vibration.vibrate(10)
+    triggerPageScroll(direction)
   }
 
   const commitUpdate = () => {
@@ -104,7 +117,6 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
   }
 
   // --- 手势定义 ---
-
   const longPressGesture = Gesture.LongPress()
     .minDuration(300)
     .onStart(() => {
@@ -112,26 +124,35 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
       runOnJS(Vibration.vibrate)(50)
     })
 
-  // ✨ 关键修复：设置 activeOffsetX
+  // 设置 activeOffsetX
   // 只有当横向移动超过 10px 时才激活 Pan，或者更激进：
   // 只有在 isEditing 为 true 时，才允许 Pan 抢占
   const dragBodyGesture = Gesture.Pan()
     .enabled(isEditing)
-    // ✨ 这个配置非常关键：
-    // 如果没有这个配置，GestureHandler 可能会在 START 阶段就拦截事件，导致父组件 ScrollView 无法识别
-    // 设置较大的 activeOffsetX 可以让微小的滑动优先被 ScrollView 捕获
-    // 但因为我们已经 enabled(isEditing)，理论上只要 isEditing=false 它是不会激活的
-    // 这里的核心问题是手势协商。
     .onStart(() => {
       isDraggingBody.value = true
       startTop.value = top.value
       startLeft.value = left.value
     })
     .onUpdate(e => {
+      // Y 轴吸附
       const rawTop = startTop.value + e.translationY
       const snappedTop = Math.round(rawTop / GRID_HEIGHT) * GRID_HEIGHT
       top.value = Math.max(0, snappedTop)
+      // X 轴跟随
       left.value = startLeft.value + e.translationX
+      // 边缘触发
+      const absoluteX = e.absoluteX
+      const now = Date.now()
+      if (now - lastScrollTime.value > SCROLL_COOLDOWN) {
+        if (absoluteX < TIME_AXIS_WIDTH + EDGE_THRESHOLD) {
+          lastScrollTime.value = now
+          runOnJS(handleEdgeTrigger)(-1)
+        } else if (absoluteX > screenWidth - EDGE_THRESHOLD) {
+          lastScrollTime.value = now
+          runOnJS(handleEdgeTrigger)(1)
+        }
+      }
     })
     .onEnd(() => {
       isDraggingBody.value = false
@@ -185,10 +206,9 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
       runOnJS(onPress)(event)
     })
 
-  // ✨ 修改手势组合逻辑
   // 只有在编辑模式下，才让 Pan 手势参与竞争
   const bodyComposedGesture = isEditing
-    ? Gesture.Race(dragBodyGesture, longPressGesture, tapGesture)
+    ? Gesture.Race(dragBodyGesture, longPressGesture)
     : Gesture.Race(longPressGesture, tapGesture) // ✨ 非编辑模式下，根本没有 Pan，FlatList 100% 获得控制权
 
   // --- 样式 ---
