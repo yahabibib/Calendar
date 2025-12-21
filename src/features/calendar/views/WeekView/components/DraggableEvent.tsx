@@ -21,8 +21,8 @@ const MIN_HEIGHT = GRID_HEIGHT
 const HANDLE_SIZE = 12
 const MENU_HEIGHT = 40
 const MENU_OFFSET = 60
-const EDGE_THRESHOLD = 40 // 边缘感应距离
-const SCROLL_COOLDOWN = 1500 // 翻页冷却时间
+const EDGE_THRESHOLD = 40
+const SCROLL_COOLDOWN = 1500
 
 interface LayoutProps {
   top: number
@@ -46,8 +46,16 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
   onUpdate,
   onPress,
 }) => {
-  const { editingEventId, setEditingEventId, dayColumnWidth, triggerPageScroll } =
-    useWeekViewContext()
+  const {
+    editingEventId,
+    setEditingEventId,
+    dayColumnWidth,
+    scrollOffset,
+    startAutoScroll,
+    stopAutoScroll,
+    triggerPageScroll,
+  } = useWeekViewContext()
+
   const removeEvent = useEventStore(state => state.removeEvent)
 
   const isEditing = editingEventId === event.id
@@ -61,14 +69,16 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
   const startTop = useSharedValue(0)
   const startHeight = useSharedValue(0)
   const startLeft = useSharedValue(0)
-  const lastScrollTime = useSharedValue(0)
+
+  // ✨ 记录拖拽开始时的滚动偏移量
+  const startScrollOffset = useSharedValue(0)
 
   const isDraggingBody = useSharedValue(false)
   const isResizingTop = useSharedValue(false)
   const isResizingBottom = useSharedValue(false)
 
-  // --- 布局同步 ---
-  // 只有在非编辑、非拖拽时，才响应外部布局变化
+  const lastScrollTime = useSharedValue(0)
+
   useEffect(() => {
     if (!isEditing && !isDraggingBody.value) {
       top.value = withTiming(layout.top, { duration: 200 })
@@ -78,13 +88,15 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     }
   }, [layout, isEditing, top, height, left, width, isDraggingBody])
 
-  // --- 手势更新 ---
   const processFinalUpdate = (
     startHour: number,
     startMinute: number,
     durationMinutes: number,
-    dayOffset: number,
+    finalLeft: number,
   ) => {
+    const offsetX = finalLeft - layout.left
+    const dayOffset = Math.round(offsetX / dayColumnWidth)
+
     let newStart = setHours(startOfDay(dayDate), startHour)
     newStart = setMinutes(newStart, startMinute)
     if (dayOffset !== 0) {
@@ -94,15 +106,12 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     onUpdate(event.id, newStart, newEnd)
   }
 
-  const handleEdgeTrigger = (direction: -1 | 1) => {
-    Vibration.vibrate(10)
-    triggerPageScroll(direction)
-  }
-
   const commitUpdate = () => {
     'worklet'
     const finalTop = top.value
     const finalHeight = height.value
+    // finalLeft 是包含了滚动补偿的，直接用它来计算位移是正确的，
+    // 因为它是卡片相对于整个 FlatList 内容区域(ContentSize) 的 X 坐标。
     const finalLeft = left.value
 
     const totalStartMinutes = Math.round((finalTop / HOUR_HEIGHT) * 60)
@@ -110,13 +119,17 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     const startMinute = totalStartMinutes % 60
     const durationMinutes = Math.round((finalHeight / HOUR_HEIGHT) * 60)
 
-    const offsetX = finalLeft - layout.left
-    const dayOffset = Math.round(offsetX / dayColumnWidth)
-
-    runOnJS(processFinalUpdate)(startHour, startMinute, durationMinutes, dayOffset)
+    runOnJS(processFinalUpdate)(startHour, startMinute, durationMinutes, finalLeft)
   }
 
-  // --- 手势定义 ---
+  const handleEdgeTrigger = (direction: -1 | 1) => {
+    // 震动反馈 (更轻微一点，提升质感)
+    Vibration.vibrate(10) // Android
+    // iOS 可以考虑使用 UIImpactFeedbackGenerator，这里先用 Vibration
+    triggerPageScroll(direction)
+  }
+
+  // --- 手势 ---
   const longPressGesture = Gesture.LongPress()
     .minDuration(300)
     .onStart(() => {
@@ -124,31 +137,39 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
       runOnJS(Vibration.vibrate)(50)
     })
 
-  // 设置 activeOffsetX
-  // 只有当横向移动超过 10px 时才激活 Pan，或者更激进：
-  // 只有在 isEditing 为 true 时，才允许 Pan 抢占
   const dragBodyGesture = Gesture.Pan()
     .enabled(isEditing)
+    // 允许任意方向的移动激活
+    .activeOffsetX([-5, 5])
+    .activeOffsetY([-5, 5])
     .onStart(() => {
       isDraggingBody.value = true
       startTop.value = top.value
       startLeft.value = left.value
+      // ✨ 记录当前滚动位置
+      startScrollOffset.value = scrollOffset.value
     })
     .onUpdate(e => {
       // Y 轴吸附
       const rawTop = startTop.value + e.translationY
       const snappedTop = Math.round(rawTop / GRID_HEIGHT) * GRID_HEIGHT
       top.value = Math.max(0, snappedTop)
-      // X 轴跟随
+
       left.value = startLeft.value + e.translationX
-      // 边缘触发
+
+      // ✨✨✨ 修复 3: 边缘检测优化 ✨✨✨
       const absoluteX = e.absoluteX
       const now = Date.now()
-      if (now - lastScrollTime.value > SCROLL_COOLDOWN) {
+
+      // 增加冷却时间到 800ms，配合 Context 的锁，双重保险
+      if (now - lastScrollTime.value > 800) {
+        // 左边缘检测
         if (absoluteX < TIME_AXIS_WIDTH + EDGE_THRESHOLD) {
           lastScrollTime.value = now
           runOnJS(handleEdgeTrigger)(-1)
-        } else if (absoluteX > screenWidth - EDGE_THRESHOLD) {
+        }
+        // 右边缘检测
+        else if (absoluteX > screenWidth - EDGE_THRESHOLD) {
           lastScrollTime.value = now
           runOnJS(handleEdgeTrigger)(1)
         }
@@ -156,6 +177,7 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     })
     .onEnd(() => {
       isDraggingBody.value = false
+      runOnJS(stopAutoScroll)() // 停止滚动
       commitUpdate()
     })
 
@@ -206,12 +228,11 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
       runOnJS(onPress)(event)
     })
 
-  // 只有在编辑模式下，才让 Pan 手势参与竞争
   const bodyComposedGesture = isEditing
     ? Gesture.Race(dragBodyGesture, longPressGesture)
-    : Gesture.Race(longPressGesture, tapGesture) // ✨ 非编辑模式下，根本没有 Pan，FlatList 100% 获得控制权
+    : Gesture.Race(longPressGesture, tapGesture)
 
-  // --- 样式 ---
+  // 样式保持不变
   const containerStyle = useAnimatedStyle(() => ({
     top: top.value,
     left: left.value,
@@ -253,7 +274,6 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
 
   return (
     <Animated.View style={containerStyle}>
-      {/* 菜单 */}
       <Animated.View style={[styles.menuContainer, menuStyle]}>
         <TouchableOpacity style={styles.menuItem} onPress={handleCopy}>
           <Text style={styles.menuText}>拷贝</Text>
@@ -264,21 +284,18 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
         </TouchableOpacity>
       </Animated.View>
 
-      {/* 顶部手柄 */}
       <GestureDetector gesture={resizeTopGesture}>
         <Animated.View style={[styles.handleContainer, styles.topHandle, handleStyle]}>
           <View style={styles.handleDot} />
         </Animated.View>
       </GestureDetector>
 
-      {/* 主体 */}
       <GestureDetector gesture={bodyComposedGesture}>
         <Animated.View style={{ flex: 1 }}>
           <ScheduleEvent event={event} style={{ flex: 1, borderRadius: isEditing ? 6 : 4 }} />
         </Animated.View>
       </GestureDetector>
 
-      {/* 底部手柄 */}
       <GestureDetector gesture={resizeBottomGesture}>
         <Animated.View style={[styles.handleContainer, styles.bottomHandle, handleStyle]}>
           <View style={styles.handleDot} />

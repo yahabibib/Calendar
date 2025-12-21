@@ -1,6 +1,6 @@
-// src/features/calendar/views/WeekView/components/BodyList.tsx
 import React, { memo, useMemo, useCallback } from 'react'
-import { View, FlatList, StyleSheet, TouchableWithoutFeedback } from 'react-native'
+import { View, StyleSheet, TouchableWithoutFeedback } from 'react-native'
+import { FlatList } from 'react-native-gesture-handler'
 import { isSameDay, isValid, setHours, setMinutes } from 'date-fns'
 import { useNavigation } from '@react-navigation/native'
 import { useWeekViewContext } from '../WeekViewContext'
@@ -21,6 +21,7 @@ const DayBodyItem = memo(({ date, width, events, onEventPress, onCreateEvent }: 
         borderRightWidth: 1,
         borderRightColor: '#f5f5f5',
         position: 'relative',
+        // ✨ 关键修复: 允许子元素(拖拽中的日程)飞出格子
         overflow: 'visible',
         zIndex: 1,
       }}>
@@ -61,15 +62,10 @@ export const BodyList = () => {
 
   const navigation = useNavigation<any>()
 
-  // 接收 timestamp (number)
   const handleCreateEvent = useCallback(
     (timestamp: number, hour: number, minute: number) => {
-      // 1. 还原日期对象
       const baseDate = new Date(timestamp)
-      // 2. 设置时分
       const startDate = setMinutes(setHours(baseDate, hour), minute)
-
-      // 3. 此时 startDate 是合法的 Date 对象，toISOString() 不会报错
       navigation.navigate('AddEvent', {
         initialDate: startDate.toISOString(),
       })
@@ -84,7 +80,6 @@ export const BodyList = () => {
           if (editingEventId) setEditingEventId(null)
         }}>
         <View style={{ flex: 1 }}>
-          {/* 全局遮罩层：点击空白处退出编辑模式 */}
           {isEditing && (
             <TouchableWithoutFeedback onPress={() => setEditingEventId(null)}>
               <View style={StyleSheet.absoluteFill} />
@@ -114,14 +109,14 @@ export const BodyList = () => {
               offset: dayColumnWidth * index,
               index,
             })}
-            scrollEnabled={!isEditing}
+            scrollEnabled={true}
+            removeClippedSubviews={false}
             onScroll={onBodyScroll}
             onScrollBeginDrag={onBodyBeginDrag}
             onMomentumScrollEnd={onScrollEnd}
             onScrollEndDrag={onScrollEnd}
             scrollEventThrottle={16}
             onViewableItemsChanged={onViewableItemsChanged}
-            removeClippedSubviews={true}
             showsHorizontalScrollIndicator={false}
             initialScrollIndex={initialIndex}
             onScrollToIndexFailed={info => {

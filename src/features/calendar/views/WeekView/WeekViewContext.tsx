@@ -15,6 +15,7 @@ import {
   NativeScrollEvent,
   ScrollView,
 } from 'react-native'
+import { useSharedValue, SharedValue } from 'react-native-reanimated'
 import { addDays, startOfWeek, differenceInCalendarDays, isSameDay, isValid } from 'date-fns'
 import { useEventStore } from '../../../../store/eventStore'
 import { CalendarEvent } from '../../../../types/event'
@@ -71,7 +72,9 @@ interface WeekViewContextType {
   setEditingEventId: (id: string | null) => void
 
   // 边缘检测：控制翻页(-1:上一周，1:下一周)
-  triggerPageScroll: (direction: -1 | 1) => void
+  scrollOffset: SharedValue<number> // 暴露给 Reanimated 组件
+  startAutoScroll: (speed: number) => void // speed: -1.0 ~ 1.0
+  stopAutoScroll: () => void
 }
 
 const WeekViewContext = createContext<WeekViewContextType | null>(null)
@@ -88,7 +91,6 @@ export const WeekViewProvider: React.FC<any> = ({
   onDateSelect,
   onEventPress,
   onHeaderBackPress,
-  triggerPageScroll,
 }) => {
   const { width: screenWidth } = useWindowDimensions()
   const events = useEventStore(state => state.events)
@@ -102,6 +104,11 @@ export const WeekViewProvider: React.FC<any> = ({
 
   // ✨ 核心锁：记录当前谁是“司机”
   const activeScroll = useRef<ScrollSource>(null)
+
+  // ✨ 1. 共享的 ScrollOffset (UI线程用) 和 CurrentScrollX (JS线程用)
+  const scrollOffset = useSharedValue(0)
+  const currentScrollX = useRef(0)
+  const autoScrollTimer = useRef<number | null>(null)
 
   const isWideScreen = screenWidth > 600
   const numColumns = isWideScreen ? 7 : 2
@@ -183,16 +190,19 @@ export const WeekViewProvider: React.FC<any> = ({
   }, [])
   const onBodyScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (activeScroll.current !== 'body') return
-
+      // 无论谁在滚动，都要记录当前位置，供 AutoScroll 和 DraggableEvent 使用
       const bodyOffsetX = e.nativeEvent.contentOffset.x
+      currentScrollX.current = bodyOffsetX
+      scrollOffset.value = bodyOffsetX // 同步给 UI 线程
+
+      if (activeScroll.current !== 'body') return
 
       headerListRef.current?.scrollToOffset({ offset: bodyOffsetX, animated: false })
       weekListRef.current?.scrollToOffset({ offset: bodyOffsetX * ratio, animated: false })
 
       updateVisibleIndex(bodyOffsetX)
     },
-    [ratio],
+    [ratio, scrollOffset], // 添加依赖
   )
 
   // --- 4. 滚动结束清理 ---
@@ -200,6 +210,47 @@ export const WeekViewProvider: React.FC<any> = ({
     // 可以在 momentum 结束时清理，也可以保留最后状态，通常不需要强制设为 null，
     // 只要 BeginDrag 正确设置即可。但为了安全，可以在完全静止后重置（可选）。
     // activeScroll.current = null
+  }, [])
+
+  // ✨ 3. 实现 AutoScroll 引擎 (JS Thread 驱动)
+  const startAutoScroll = useCallback(
+    (speed: number) => {
+      // speed: -1.0 ~ 1.0 (负数向左，正数向右)
+      if (autoScrollTimer.current) cancelAnimationFrame(autoScrollTimer.current)
+
+      const tick = () => {
+        // 基础速度：每帧最大移动 15px (约 900px/s)
+        const BASE_SPEED = 15
+        const step = speed * BASE_SPEED
+        const nextOffset = currentScrollX.current + step
+
+        // 边界检查
+        const maxOffset = dayColumnWidth * dayList.length - screenWidth
+        if (nextOffset < 0 || nextOffset > maxOffset) {
+          autoScrollTimer.current = null
+          return
+        }
+
+        // 执行滚动
+        bodyListRef.current?.scrollToOffset({ offset: nextOffset, animated: false })
+        // 手动更新位置记录 (因为 scrollToOffset 是异步的，onScroll 可能还没回来)
+        currentScrollX.current = nextOffset
+        scrollOffset.value = nextOffset
+
+        // 下一帧
+        autoScrollTimer.current = requestAnimationFrame(tick)
+      }
+
+      autoScrollTimer.current = requestAnimationFrame(tick)
+    },
+    [dayColumnWidth, dayList.length, screenWidth, scrollOffset],
+  )
+
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollTimer.current) {
+      cancelAnimationFrame(autoScrollTimer.current)
+      autoScrollTimer.current = null
+    }
   }, [])
 
   const onViewableItemsChanged = useCallback(
@@ -299,6 +350,36 @@ export const WeekViewProvider: React.FC<any> = ({
     [viewportHeight],
   )
 
+  const isPageScrolling = useRef(false)
+
+  const triggerPageScroll = useCallback(
+    (direction: -1 | 1) => {
+      // 🔒 如果正在滚动中，直接忽略，防止原生层崩溃
+      if (isPageScrolling.current) return
+
+      const pageSize = isWideScreen ? 7 : numColumns
+      const nextIndex = visibleStartDateIndex + direction * pageSize
+
+      // 边界检查
+      if (nextIndex < 0 || nextIndex >= dayList.length) return
+
+      // 🔒 上锁
+      isPageScrolling.current = true
+
+      // 执行滚动
+      bodyListRef.current?.scrollToIndex({ index: nextIndex, animated: true })
+
+      // headerList 和 weekList 会通过 onScroll 联动
+
+      // 🔓 解锁：设置一个延时，等待动画大概完成后再允许下一次触发
+      // 500ms 是一个经验值，足够完成一次平滑的翻页动画
+      setTimeout(() => {
+        isPageScrolling.current = false
+      }, 500)
+    },
+    [visibleStartDateIndex, isWideScreen, numColumns, dayList.length],
+  )
+
   const value = {
     dayList,
     events,
@@ -335,6 +416,9 @@ export const WeekViewProvider: React.FC<any> = ({
     setEditingEventId,
 
     triggerPageScroll,
+    scrollOffset,
+    startAutoScroll,
+    stopAutoScroll,
   }
 
   return <WeekViewContext.Provider value={value}>{children}</WeekViewContext.Provider>
