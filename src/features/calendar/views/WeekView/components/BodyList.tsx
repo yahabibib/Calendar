@@ -1,6 +1,6 @@
 // src/features/calendar/views/WeekView/components/BodyList.tsx
 import React, { memo, useMemo, useCallback } from 'react'
-import { View, FlatList, StyleSheet } from 'react-native'
+import { View, FlatList, StyleSheet, TouchableWithoutFeedback } from 'react-native'
 import { isSameDay, isValid, setHours, setMinutes } from 'date-fns'
 import { useNavigation } from '@react-navigation/native'
 import { useWeekViewContext } from '../WeekViewContext'
@@ -21,11 +21,17 @@ const DayBodyItem = memo(({ date, width, events, onEventPress, onCreateEvent }: 
         borderRightWidth: 1,
         borderRightColor: '#f5f5f5',
         position: 'relative',
-        overflow: 'hidden',
+        overflow: 'visible',
+        zIndex: 1,
       }}>
       <DragCreateWrapper date={date} onCreateEvent={onCreateEvent}>
         <View style={{ flex: 1 }}>
-          <EventColumn events={regularEvents} width={width} onEventPress={onEventPress} />
+          <EventColumn
+            events={regularEvents}
+            width={width}
+            onEventPress={onEventPress}
+            dayDate={date}
+          />
           {isToday && <CurrentTimeIndicator />}
         </View>
       </DragCreateWrapper>
@@ -46,11 +52,16 @@ export const BodyList = () => {
     onEventPress,
     isWideScreen,
     initialIndex,
+    editingEventId,
+    setEditingEventId,
   } = useWeekViewContext()
+
+  // 是否正在编辑事件
+  const isEditing = editingEventId !== null
 
   const navigation = useNavigation<any>()
 
-  // ✨ 关键修复：接收 timestamp (number)
+  // 接收 timestamp (number)
   const handleCreateEvent = useCallback(
     (timestamp: number, hour: number, minute: number) => {
       // 1. 还原日期对象
@@ -68,45 +79,53 @@ export const BodyList = () => {
 
   return (
     <View style={{ flex: 1 }}>
-      <FlatList
-        ref={bodyListRef}
-        data={dayList}
-        keyExtractor={item => item.toISOString()}
-        renderItem={({ item }) => (
-          <DayBodyItem
-            date={item}
-            width={dayColumnWidth}
-            events={events.filter(
-              (e: any) => isValid(new Date(e.startDate)) && isSameDay(new Date(e.startDate), item),
+      <TouchableWithoutFeedback
+        onPress={() => {
+          if (editingEventId) setEditingEventId(null)
+        }}>
+        <View style={{ flex: 1 }}>
+          <FlatList
+            ref={bodyListRef}
+            data={dayList}
+            keyExtractor={item => item.toISOString()}
+            renderItem={({ item }) => (
+              <DayBodyItem
+                date={item}
+                width={dayColumnWidth}
+                events={events.filter(
+                  (e: any) =>
+                    isValid(new Date(e.startDate)) && isSameDay(new Date(e.startDate), item),
+                )}
+                onEventPress={onEventPress}
+                onCreateEvent={handleCreateEvent}
+              />
             )}
-            onEventPress={onEventPress}
-            onCreateEvent={handleCreateEvent}
+            horizontal
+            snapToInterval={isWideScreen ? undefined : dayColumnWidth}
+            decelerationRate="fast"
+            getItemLayout={(data, index) => ({
+              length: dayColumnWidth,
+              offset: dayColumnWidth * index,
+              index,
+            })}
+            onScroll={onBodyScroll}
+            onScrollBeginDrag={onBodyBeginDrag}
+            onMomentumScrollEnd={onScrollEnd}
+            onScrollEndDrag={onScrollEnd}
+            scrollEventThrottle={16}
+            onViewableItemsChanged={onViewableItemsChanged}
+            removeClippedSubviews={true}
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={initialIndex}
+            onScrollToIndexFailed={info => {
+              const wait = new Promise(resolve => setTimeout(resolve, 500))
+              wait.then(() => {
+                bodyListRef.current?.scrollToIndex({ index: info.index, animated: false })
+              })
+            }}
           />
-        )}
-        horizontal
-        snapToInterval={isWideScreen ? undefined : dayColumnWidth}
-        decelerationRate="fast"
-        getItemLayout={(data, index) => ({
-          length: dayColumnWidth,
-          offset: dayColumnWidth * index,
-          index,
-        })}
-        onScroll={onBodyScroll}
-        onScrollBeginDrag={onBodyBeginDrag}
-        onMomentumScrollEnd={onScrollEnd}
-        onScrollEndDrag={onScrollEnd}
-        scrollEventThrottle={16}
-        onViewableItemsChanged={onViewableItemsChanged}
-        removeClippedSubviews={true}
-        showsHorizontalScrollIndicator={false}
-        initialScrollIndex={initialIndex}
-        onScrollToIndexFailed={info => {
-          const wait = new Promise(resolve => setTimeout(resolve, 500))
-          wait.then(() => {
-            bodyListRef.current?.scrollToIndex({ index: info.index, animated: false })
-          })
-        }}
-      />
+        </View>
+      </TouchableWithoutFeedback>
     </View>
   )
 }

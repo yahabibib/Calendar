@@ -57,8 +57,10 @@ export const EventDetailsScreen = () => {
       <DetailTimeCard event={event} />
 
       {/* 3. 地图卡片 (仅当有位置时显示，或者未来 AI 推荐地点时显示) */}
-      <LocationMapCard location={event.location} />
-
+      <LocationMapCard
+        location={event.location}
+        coordinates={event.coordinates} // ✨ 传入坐标
+      />
       {/* 4. 详细信息卡片 (备注/URL/归属) */}
       <MetaInfoCard event={event} />
 

@@ -1,13 +1,33 @@
-// src/features/event/details/LocationMapCard.tsx
 import React from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking, Platform } from 'react-native'
+import MapView, { Marker } from 'react-native-maps' // ✨ 引入地图组件
+import { LatLng } from '../../../types/event'
 
 interface LocationMapCardProps {
   location?: string
+  coordinates?: LatLng // ✨ 接收坐标
 }
 
-export const LocationMapCard: React.FC<LocationMapCardProps> = ({ location }) => {
+export const LocationMapCard: React.FC<LocationMapCardProps> = ({ location, coordinates }) => {
   if (!location) return null
+
+  // 跳转系统地图进行导航
+  const handleOpenMap = () => {
+    const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' })
+    const latLng = coordinates ? `${coordinates.latitude},${coordinates.longitude}` : ''
+    const label = location
+
+    const url = Platform.select({
+      ios: `${scheme}${label}@${latLng}`,
+      android: `${scheme}${latLng}(${label})`,
+    })
+
+    if (url) {
+      Linking.openURL(url)
+    } else {
+      Alert.alert('无法打开地图')
+    }
+  }
 
   return (
     <View style={styles.card}>
@@ -21,24 +41,41 @@ export const LocationMapCard: React.FC<LocationMapCardProps> = ({ location }) =>
         </Text>
       </View>
 
-      {/* 地图容器 (未来替换为 MapKit) */}
-      <TouchableOpacity
-        style={styles.mapPlaceholder}
-        onPress={() => Alert.alert('跳转地图', `导航到：${location}`)}
-        activeOpacity={0.9}>
-        {/* 这里目前放一个灰色背景，未来放 <MapView /> */}
-        <View style={styles.mapInner}>
-          <Text style={styles.mapLabel}>地图加载中...</Text>
-          <Text style={styles.mapSubLabel}>(此处预留 MapKit 原生组件)</Text>
-        </View>
+      {/* 地图区域 */}
+      <TouchableOpacity style={styles.mapContainer} onPress={handleOpenMap} activeOpacity={0.9}>
+        {coordinates ? (
+          <MapView
+            style={styles.map}
+            initialRegion={{
+              latitude: coordinates.latitude,
+              longitude: coordinates.longitude,
+              latitudeDelta: 0.01, // 缩放级别：数字越小越精细
+              longitudeDelta: 0.01,
+            }}
+            scrollEnabled={false} // ✨ 详情页通常禁止小地图滚动，防误触
+            zoomEnabled={false}
+            pitchEnabled={false}
+            rotateEnabled={false}
+            pointerEvents="none" // 让点击事件穿透给外层的 TouchableOpacity
+          >
+            <Marker coordinate={coordinates} />
+          </MapView>
+        ) : (
+          // 如果没有坐标，回退到灰色占位符
+          <View style={styles.mapPlaceholder}>
+            <Text style={styles.mapLabel}>暂无定位信息</Text>
+            <Text style={styles.mapSubLabel}>{location}</Text>
+          </View>
+        )}
+
+        {/* 遮罩层：增加点击感，模拟 iOS 地图卡片的质感 */}
+        <View style={styles.overlay} />
       </TouchableOpacity>
 
-      {/* 底部操作栏 (模拟 Apple Maps) */}
+      {/* 底部操作栏 */}
       <View style={styles.actionRow}>
-        <TouchableOpacity
-          onPress={() => Alert.alert('路线', '规划路线中...')}
-          style={styles.actionBtn}>
-          <Text style={styles.actionBtnText}>路线</Text>
+        <TouchableOpacity onPress={handleOpenMap} style={styles.actionBtn}>
+          <Text style={styles.actionBtnText}>导航 / 路线</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -52,7 +89,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 12,
     padding: 12,
-    overflow: 'hidden', // 确保地图圆角
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -70,7 +106,7 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#E8F5E9', // 浅绿底
+    backgroundColor: '#E8F5E9',
     borderRadius: 8,
     marginRight: 12,
   },
@@ -82,20 +118,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // 地图样式
-  mapPlaceholder: {
+  // 地图容器样式
+  mapContainer: {
     height: 150,
-    backgroundColor: '#e1e4e8',
     borderRadius: 8,
+    overflow: 'hidden', // 确保地图圆角
+    marginBottom: 12,
+    backgroundColor: '#f2f2f6',
+    position: 'relative',
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject, // 填满容器
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'transparent', // 可以设为 'rgba(0,0,0,0.02)' 增加质感
+  },
+
+  // 占位符样式
+  mapPlaceholder: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  mapInner: { alignItems: 'center' },
   mapLabel: { color: '#8e8e93', fontWeight: '600', marginBottom: 4 },
   mapSubLabel: { color: '#8e8e93', fontSize: 12 },
 
-  // 操作栏
   actionRow: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#e5e5ea',

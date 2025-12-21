@@ -4,30 +4,34 @@ export type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
 
 export interface RecurrenceRule {
   freq: RecurrenceFrequency
-  interval?: number // 每隔几天/几周
-  until?: string // 结束日期 (ISO)
-  count?: number // 重复次数
+  interval?: number
+  until?: string
+  count?: number
+}
+
+// ✨ 新增坐标类型
+export interface LatLng {
+  latitude: number
+  longitude: number
 }
 
 export interface CalendarEvent {
   id: string
   title: string
-  startDate: string // ISO 8601
-  endDate: string // ISO 8601
+  startDate: string
+  endDate: string
   isAllDay: boolean
   
-  // --- ✨ 新增 RFC 5545 字段 ---
-  location?: string       // LOCATION: 地点
-  description?: string    // DESCRIPTION: 备注/描述
-  url?: string            // URL: 相关链接
+  location?: string
+  // ✨ 新增坐标字段 (可选)
+  coordinates?: LatLng
   
-  // 归属
-  calendarId?: string     // 归属的日历 ID (如 "Work", "Home")
-  color?: string          // 方便 UI 展示的颜色
-  
-  // 规则与提醒
-  rrule?: RecurrenceRule | string // RRULE: 重复规则 (简单起见，我们先用对象或字符串)
-  alarms?: number[]       // VALARM: 提醒设置 (存储“提前多少分钟”的数组，如 [15, 60] 表示提前15分钟和1小时)
+  description?: string
+  url?: string
+  calendarId?: string
+  color?: string
+  rrule?: RecurrenceRule | string
+  alarms?: number[]
 }
 
 // 模拟数据 (Mock Data)
@@ -36,9 +40,14 @@ export const MOCK_EVENTS: CalendarEvent[] = [
     id: '1',
     title: '项目启动会',
     description: '讨论日历应用的架构设计',
-    location: '会议室 302',
-    startDate: new Date().toISOString().split('T')[0] + 'T09:00:00Z', // 今天的 9点
-    endDate: new Date().toISOString().split('T')[0] + 'T10:00:00Z',   // 今天的 10点
+    location: 'Apple Park',
+    // ✨ 给这个 mock 数据加上坐标 (Apple Park 的位置)
+    coordinates: {
+      latitude: 37.3346,
+      longitude: -122.0090,
+    },
+    startDate: new Date().toISOString().split('T')[0] + 'T09:00:00Z',
+    endDate: new Date().toISOString().split('T')[0] + 'T10:00:00Z',
     isAllDay: false,
     alarms: [15],
   },
@@ -48,6 +57,6 @@ export const MOCK_EVENTS: CalendarEvent[] = [
     startDate: new Date().toISOString().split('T')[0] + 'T18:00:00Z',
     endDate: new Date().toISOString().split('T')[0] + 'T18:30:00Z',
     isAllDay: false,
-    rrule: 'FREQ=WEEKLY;BYDAY=FR', // 每周五
+    rrule: 'FREQ=WEEKLY;BYDAY=FR',
   }
 ];

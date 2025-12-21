@@ -1,4 +1,3 @@
-// src/features/calendar/views/WeekView/index.tsx
 import React from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
 import { format, isValid } from 'date-fns'

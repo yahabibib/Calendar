@@ -1,47 +1,56 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { CalendarEvent } from '../../../../../types/event'
-import { ScheduleEvent } from '../../../components/ScheduleEvent'
 import { calculateEventLayout } from '../../../utils/eventLayout'
+// ✨ 引入新组件
+import { DraggableEvent } from './DraggableEvent'
+import { useEventStore } from '../../../../../store/eventStore'
 
 interface EventColumnProps {
   events: CalendarEvent[]
   width: number
   onEventPress?: (event: CalendarEvent) => void
+  dayDate: Date // ✨ 需要传入当天日期，用于计算绝对时间
 }
 
 export const EventColumn: React.FC<EventColumnProps> = React.memo(
-  ({ events, width, onEventPress }) => {
-    // 1. 调用布局引擎计算坐标
-    // 使用 useMemo 缓存计算结果，只有 events 或 width 变了才重算
+  ({ events, width, onEventPress, dayDate }) => {
+    const updateEvent = useEventStore(state => state.updateEvent) // 获取 store action
+
+    // 1. 布局计算 (保持不变)
     const layoutEvents = useMemo(() => {
       return calculateEventLayout(events, width)
     }, [events, width])
 
+    // ✨ 处理更新
+    const handleUpdateEvent = useCallback(
+      (id: string, newStart: Date, newEnd: Date) => {
+        // 找到原事件
+        const originalEvent = events.find(e => e.id === id)
+        if (originalEvent) {
+          // 更新时间，保持其他字段不变
+          updateEvent({
+            ...originalEvent,
+            startDate: newStart.toISOString(),
+            endDate: newEnd.toISOString(),
+          })
+        }
+      },
+      [events, updateEvent],
+    )
+
     return (
-      // 使用 StyleSheet.absoluteFill 覆盖在 DayBodyItem 上
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
         {layoutEvents.map(event => (
-          <View
+          // ✨ 使用 DraggableEvent 替换原来的 View + ScheduleEvent
+          <DraggableEvent
             key={event.id}
-            style={{
-              position: 'absolute',
-              top: event.layout.top,
-              left: event.layout.left,
-              width: event.layout.width,
-              height: event.layout.height,
-              // 加上一点 padding，防止看起来太挤
-              paddingRight: 2,
-            }}>
-            {/* 复用原本的 ScheduleEvent 组件 */}
-            {/* 注意：ScheduleEvent 内部可能需要适配，如果它以前是自己算高度的，现在由外部容器控制 */}
-            <ScheduleEvent
-              event={event}
-              onPress={onEventPress}
-              // 强制 ScheduleEvent 填满容器
-              style={{ flex: 1 }}
-            />
-          </View>
+            event={event}
+            layout={event.layout}
+            dayDate={dayDate}
+            onPress={onEventPress}
+            onUpdate={handleUpdateEvent}
+          />
         ))}
       </View>
     )

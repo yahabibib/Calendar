@@ -1,24 +1,31 @@
-import React from 'react'
-import { View, StyleSheet, StatusBar } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useNavigation } from '@react-navigation/native'
-import { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import { RootStackParamList } from '../types/navigation'
-
+import React, { useCallback } from 'react'
+import { View, StyleSheet } from 'react-native'
+import { useNavigation } from '@react-navigation/native' // ✨ 引入 hook
 import { Calendar } from '../features/calendar/Calendar'
+import { CalendarEvent } from '../types/event'
+import { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import { RootStackParamList } from '../navigation/AppNavigator'
+
+// 定义导航类型
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>
 
 export const HomeScreen = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
+  const navigation = useNavigation<NavigationProp>() // ✨ 获取 navigation
+
+  // ✨ 定义点击处理函数
+  const handleEventPress = useCallback(
+    (event: CalendarEvent) => {
+      navigation.navigate('EventDetails', { event })
+    },
+    [navigation],
+  )
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-
-      {/* ✨ 核心修改：移除 'bottom' */}
-      {/* 这样 Calendar 就会延伸到屏幕物理最底端 */}
-      <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-        <Calendar onAddEventPress={() => navigation.navigate('AddEvent')} />
-      </SafeAreaView>
+      <Calendar
+        mode="week"
+        onEventPress={handleEventPress} // ✨ 绑定跳转逻辑
+      />
     </View>
   )
 }
@@ -27,8 +34,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',
-  },
-  safeArea: {
-    flex: 1,
   },
 })

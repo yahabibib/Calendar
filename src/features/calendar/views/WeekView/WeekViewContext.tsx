@@ -1,4 +1,3 @@
-// src/features/calendar/views/WeekView/WeekViewContext.tsx
 import React, {
   createContext,
   useContext,
@@ -66,6 +65,13 @@ interface WeekViewContextType {
   onEventPress?: (event: CalendarEvent) => void
   onHeaderBackPress?: (date: Date) => void
   onVerticalLayout: (event: any) => void
+
+  // 编辑状态管理
+  editingEventId?: string | null
+  setEditingEventId: (id: string | null) => void
+
+  // 边缘检测：控制翻页(-1:上一周，1:下一周)
+  triggerPageScroll: (direction: -1 | 1) => void
 }
 
 const WeekViewContext = createContext<WeekViewContextType | null>(null)
@@ -82,6 +88,7 @@ export const WeekViewProvider: React.FC<any> = ({
   onDateSelect,
   onEventPress,
   onHeaderBackPress,
+  triggerPageScroll,
 }) => {
   const { width: screenWidth } = useWindowDimensions()
   const events = useEventStore(state => state.events)
@@ -90,6 +97,8 @@ export const WeekViewProvider: React.FC<any> = ({
   const headerListRef = useRef<FlatList>(null)
   const bodyListRef = useRef<FlatList>(null)
   const verticalScrollRef = useRef<ScrollView>(null)
+
+  const [editingEventId, setEditingEventId] = useState<string | null>(null)
 
   // ✨ 核心锁：记录当前谁是“司机”
   const activeScroll = useRef<ScrollSource>(null)
@@ -321,6 +330,11 @@ export const WeekViewProvider: React.FC<any> = ({
     onEventPress,
     onHeaderBackPress,
     onVerticalLayout,
+
+    editingEventId,
+    setEditingEventId,
+
+    triggerPageScroll,
   }
 
   return <WeekViewContext.Provider value={value}>{children}</WeekViewContext.Provider>
