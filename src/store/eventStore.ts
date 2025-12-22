@@ -42,7 +42,7 @@ export const useEventStore = create<EventStore>()(
       })),
 
       // 🧠 修复后的重复日程核心算法
-      updateRecurringEvent: (originId, originalStart, updatedInstance, mode) => {
+      updateRecurringEvent: (originId: string, originalStart: string, updatedInstance: CalendarEvent, mode: UpdateMode) => {
         set((state) => {
           const events = [...state.events]
           const masterIndex = events.findIndex(e => e.id === originId)

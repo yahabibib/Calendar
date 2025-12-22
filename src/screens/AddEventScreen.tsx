@@ -8,11 +8,11 @@ import {
   Platform,
 } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
-import { format } from 'date-fns' // ✨ 引入 format
+import { format } from 'date-fns'
 
 // Hooks & Types
 import { useEventForm } from '../features/event/hooks/useEventForm'
-import { RecurrenceFrequency } from '../types/event'
+import { RecurrenceFrequency, CalendarEvent } from '../types/event' // 引入类型
 
 // Components
 import { TitleLocationGroup } from '../features/event/components/FormGroups/TitleLocationGroup'
@@ -27,6 +27,13 @@ import { CustomAlarmModal } from '../features/event/components/Modals/CustomAlar
 import { EndRepeatModal } from '../features/event/components/Modals/EndRepeatModal'
 import { RepeatGroup } from '../features/event/components/FormGroups/RepeatGroup'
 
+// 这里的类型定义和 AppNavigator.tsx 保持一致
+type RouteParams = {
+  initialDate?: string
+  event?: CalendarEvent // ✨ 接收 event 对象
+}
+
+// ... 预设常量保持不变 ...
 const REPEAT_PRESETS = [
   { label: '从不', value: null },
   { label: '每天', value: 'DAILY' },
@@ -56,16 +63,21 @@ const CALENDAR_OPTIONS = [
 export const AddEventScreen = () => {
   const navigation = useNavigation()
   const route = useRoute<any>()
-  const { initialDate } = route.params || {}
 
-  const { form, labels, actions } = useEventForm(initialDate)
-  // ✨ 增加 'end_repeat' 类型
+  // ✨ 获取参数：可能有 initialDate (新建) 或 event (编辑)
+  const { initialDate, event } = (route.params || {}) as RouteParams
+
+  // ✨ 将 event 传给 Hook
+  const { form, labels, actions } = useEventForm(initialDate, event)
+
   const [modalType, setModalType] = useState<
     'repeat' | 'repeat_custom' | 'alarm' | 'alarm_custom' | 'calendar' | 'end_repeat' | null
   >(null)
 
   useLayoutEffect(() => {
     navigation.setOptions({
+      // ✨ 动态标题：如果有 event 则是 "编辑日程"，否则是 "新建日程"
+      title: event ? '编辑日程' : '新建日程',
       headerLeft: () => (
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -77,26 +89,23 @@ export const AddEventScreen = () => {
       headerRight: () => (
         <TouchableOpacity
           onPress={() => {
-            if (actions.saveEvent()) navigation.goBack()
+            actions.saveEvent(() => {
+              navigation.goBack() // 只有当 Hook 内部调用了这个回调，才会关闭页面
+            })
           }}
           style={styles.headerBtnRight}
           disabled={!form.title.trim()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[styles.headerBtnTextSave, !form.title.trim() && styles.disabledText]}>
-            添加
+            {event ? '保存' : '添加'} {/* ✨ 按钮文案也动态化 */}
           </Text>
         </TouchableOpacity>
       ),
     })
-  }, [navigation, form.title, actions])
+  }, [navigation, form.title, actions, event])
 
-  // ✨ 计算 UI 显示逻辑
-  const showEndRepeat = form.rruleFreq !== null // 只有设置了重复才显示结束选项
-
-  // 优化重复文案：去掉包含的截止日期信息，因为我们现在分行显示了
+  const showEndRepeat = form.rruleFreq !== null
   const cleanRepeatLabel = labels.repeatLabel.split(' (截止')[0]
-
-  // 结束重复文案
   const endRepeatLabel = form.customUntil ? format(form.customUntil, 'yyyy年M月d日') : '永不'
 
   return (
@@ -104,6 +113,7 @@ export const AddEventScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        {/* 表单内容保持不变 */}
         <TitleLocationGroup
           title={form.title}
           onChangeTitle={form.setTitle}
@@ -143,7 +153,7 @@ export const AddEventScreen = () => {
         />
       </ScrollView>
 
-      {/* Modals */}
+      {/* Modals 保持不变 */}
       <SelectionModal
         visible={modalType === 'repeat'}
         title="重复频率"
@@ -151,7 +161,6 @@ export const AddEventScreen = () => {
         selectedValue={form.rruleFreq}
         onSelect={val => {
           form.setRruleFreq(val as RecurrenceFrequency | null)
-          // 切换频率时，重置一些默认值，但保留 Until 逻辑
           form.setCustomInterval('1')
         }}
         onClose={() => setModalType(null)}
@@ -159,7 +168,6 @@ export const AddEventScreen = () => {
         customValueToken="CUSTOM"
       />
 
-      {/* ✨ 新增：结束重复设置弹窗 */}
       <EndRepeatModal
         visible={modalType === 'end_repeat'}
         initialUntil={form.customUntil}

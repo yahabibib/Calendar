@@ -1,10 +1,10 @@
 export type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
 
 export interface RecurrenceRule {
-  freq: RecurrenceFrequency
-  interval?: number
-  until?: string
-  count?: number
+  freq: RecurrenceFrequency // 重复频率
+  interval?: number // 重复间隔
+  until?: string  // 重复终止时间
+  count?: number  // 重复次数
 }
 
 export interface LatLng {
