@@ -7,7 +7,6 @@ import Animated, {
   withSpring,
   withTiming,
   runOnJS,
-  scheduleOnRN,
   useAnimatedReaction,
 } from 'react-native-reanimated'
 // ✨ 确认使用：react-native-haptic-feedback

@@ -1,8 +1,7 @@
 import { RRule } from 'rrule'
-import { startOfDay, endOfDay, addMinutes, differenceInMinutes } from 'date-fns'
+import { startOfDay, endOfDay, addMinutes, differenceInMinutes, isSameMinute } from 'date-fns'
 import { CalendarEvent, RecurrenceRule } from '../types/event'
 
-// 频率映射表：将我们的字符串类型映射为 rrule 的常量
 const FREQ_MAP: Record<string, any> = {
   DAILY: RRule.DAILY,
   WEEKLY: RRule.WEEKLY,
@@ -10,11 +9,6 @@ const FREQ_MAP: Record<string, any> = {
   YEARLY: RRule.YEARLY,
 }
 
-/**
- * 核心函数：获取指定日期当天的所有日程（包含普通日程 + 重复日程的实例）
- * @param allEvents Store 中的所有元数据事件
- * @param date 指定的日期 (Date 对象)
- */
 export const getEventsForDate = (allEvents: CalendarEvent[], date: Date): CalendarEvent[] => {
   const dayStart = startOfDay(date)
   const dayEnd = endOfDay(date)
@@ -26,7 +20,6 @@ export const getEventsForDate = (allEvents: CalendarEvent[], date: Date): Calend
     
     // 1. 普通日程 (无重复规则)
     if (!event.rrule) {
-      // 简单判断：日程开始时间在当天 (为了性能，暂不处理跨天长日程的切片显示)
       if (eventStart >= dayStart && eventStart <= dayEnd) {
         dailyEvents.push(event)
       }
@@ -38,44 +31,44 @@ export const getEventsForDate = (allEvents: CalendarEvent[], date: Date): Calend
       const eventEnd = new Date(event.endDate)
       const duration = differenceInMinutes(eventEnd, eventStart)
 
-      // 构建 rrule 配置对象
       let ruleOptions: any = {
-        dtstart: eventStart, // ⚠️ 核心：规则必须基于原始开始时间计算
+        dtstart: eventStart,
       }
 
       if (typeof event.rrule === 'string') {
-        // 如果是字符串 (例如从 iCal 导入)
         const parsed = RRule.parseString(event.rrule)
         ruleOptions = { ...ruleOptions, ...parsed }
       } else {
-        // 如果是对象 (我们 App 自己创建的结构)
         const rruleObj = event.rrule as RecurrenceRule
         ruleOptions.freq = FREQ_MAP[rruleObj.freq] || RRule.DAILY
-        
         if (rruleObj.interval) ruleOptions.interval = rruleObj.interval
         if (rruleObj.count) ruleOptions.count = rruleObj.count
         if (rruleObj.until) ruleOptions.until = new Date(rruleObj.until)
       }
 
       const rule = new RRule(ruleOptions)
-
-      // 计算：当天是否有实例落在时间范围内
-      // between(start, end, inc): inc=true 表示包含边界
       const instances = rule.between(dayStart, dayEnd, true)
 
       instances.forEach(instanceDate => {
-        // 生成“影子事件” (Shadow Event)
+        // ✨✨✨ 核心修复：检查黑名单 (EXDATE) ✨✨✨
+        // 如果当前生成的实例时间，存在于 exdates 数组中，说明它被删改过了，直接跳过
+        if (event.exdates) {
+          const instanceISO = instanceDate.toISOString()
+          // 简单字符串匹配（因为我们存的就是 ISO）
+          // 也可以用 isSameMinute 做更严格的时间比对，但通常 ISO 足够了
+          const isExcluded = event.exdates.includes(instanceISO)
+          
+          if (isExcluded) {
+            return // 🚫 命中黑名单，不生成影子，直接 return
+          }
+        }
+
+        // 生成影子事件
         const shadowEvent: CalendarEvent = {
           ...event,
-          // ⚠️ 关键：生成临时唯一 ID，格式：原始ID_实例时间戳
-          // 这样 React Key 不会冲突，且我们能通过 split('_') 找回原 ID
           id: `${event.id}_${instanceDate.getTime()}`,
-          
-          // ⚠️ 关键：时间要换成计算出来的实例时间
           startDate: instanceDate.toISOString(),
           endDate: addMinutes(instanceDate, duration).toISOString(),
-          
-          // 标记身份
           _isInstance: true,
           _originalId: event.id
         }

@@ -29,10 +29,10 @@ export interface CalendarEvent {
   rrule?: RecurrenceRule | string
   alarms?: number[]
 
-  // ✨✨✨ 新增：运行时字段 (Runtime Only) ✨✨✨
-  // 这些字段不需要存入数据库，只在 calculateEvents 时临时生成
   _isInstance?: boolean  // 标识是否为重复生成的实例
   _originalId?: string   // 指向母日程的 ID
+
+  exdates?: string[]  // 例外日期，用于排除某些特定的重复实例
 }
 
 export const MOCK_EVENTS: CalendarEvent[] = [
