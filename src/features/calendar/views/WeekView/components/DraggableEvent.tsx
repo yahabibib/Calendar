@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react'
-import { StyleSheet, View, Text, TouchableOpacity, Dimensions } from 'react-native'
+import React, { useEffect, useMemo } from 'react'
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native'
 import { GestureDetector, Gesture } from 'react-native-gesture-handler'
 import Animated, {
   useSharedValue,
@@ -7,6 +7,7 @@ import Animated, {
   withSpring,
   withTiming,
   runOnJS,
+  scheduleOnRN,
   useAnimatedReaction,
 } from 'react-native-reanimated'
 // ✨ 确认使用：react-native-haptic-feedback
@@ -25,12 +26,13 @@ const MENU_OFFSET = 60
 const MENU_HEIGHT = 40
 const HANDLE_SIZE = 12
 
-// ✨ 震动配置
+// 震动配置
 const hapticOptions = {
   enableVibrateFallback: true,
   ignoreAndroidSystemSettings: false,
 }
 
+// 布局属性
 interface LayoutProps {
   top: number
   height: number
@@ -39,11 +41,11 @@ interface LayoutProps {
 }
 
 interface DraggableEventProps {
-  event: CalendarEvent
-  layout: LayoutProps
-  dayDate: Date
-  onUpdate: (id: string, newStartDate: Date, newEndDate: Date) => void
-  onPress: (event: CalendarEvent) => void
+  event: CalendarEvent // 事件数据
+  layout: LayoutProps // 事件布局
+  dayDate: Date // 当前日期
+  onUpdate: (id: string, newStartDate: Date, newEndDate: Date) => void // 事件更新回调
+  onPress: (event: CalendarEvent) => void // 事件点击回调
 }
 
 export const DraggableEvent: React.FC<DraggableEventProps> = ({
@@ -57,6 +59,8 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
   const removeEvent = useEventStore(state => state.removeEvent)
 
   const isEditing = editingEventId === event.id
+  // 交互状态（UI线程驱动）
+  const isActive = useSharedValue(false)
 
   const top = useSharedValue(layout.top)
   const height = useSharedValue(layout.height)
@@ -71,20 +75,22 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
   const isResizingTop = useSharedValue(false)
   const isResizingBottom = useSharedValue(false)
 
+  // 布局同步
   useEffect(() => {
-    if (!isEditing && !isDraggingBody.value) {
+    if (!isActive.value) {
       top.value = withTiming(layout.top, { duration: 200 })
       height.value = withTiming(layout.height, { duration: 200 })
       left.value = withTiming(layout.left, { duration: 200 })
       width.value = withTiming(layout.width, { duration: 200 })
     }
-  }, [layout, isEditing, top, height, left, width, isDraggingBody])
+  }, [layout, top, height, left, width, isDraggingBody, isActive.value])
 
-  // --- Haptics Logic ---
+  // 震动逻辑
   const triggerTick = () => {
     ReactNativeHapticFeedback.trigger('impactLight', hapticOptions)
   }
 
+  // 震动反馈：每移动到新的时间格时触发
   useAnimatedReaction(
     () => Math.round(top.value / GRID_HEIGHT),
     (current, prev) => {
@@ -96,6 +102,7 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     },
   )
 
+  // 最终更新处理
   const processFinalUpdate = (
     startHour: number,
     startMinute: number,
@@ -111,62 +118,110 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
     onUpdate(event.id, newStart, newEnd)
   }
 
+  // 提交更新
   const commitUpdate = () => {
     'worklet'
     const finalTop = top.value
     const finalHeight = height.value
-    const finalLeft = left.value
 
+    // 计算目标列索引
+    const safeWidth = !dayColumnWidth || dayColumnWidth === 0 ? 1 : dayColumnWidth
+    const colIndex = Math.round(left.value / safeWidth)
+
+    // 计算原始列索引
+    const originalColIndex = Math.round(layout.left / safeWidth)
+
+    // 得出天数偏移量
+    const dayOffset = colIndex - originalColIndex
+
+    // 时间计算保持不变
     const totalStartMinutes = Math.round((finalTop / HOUR_HEIGHT) * 60)
     const startHour = Math.floor(totalStartMinutes / 60)
     const startMinute = totalStartMinutes % 60
     const durationMinutes = Math.round((finalHeight / HOUR_HEIGHT) * 60)
 
-    const offsetX = finalLeft - layout.left
-    const safeOffsetX = isNaN(offsetX) ? 0 : offsetX
-    const safeWidth = !dayColumnWidth || dayColumnWidth === 0 ? 1 : dayColumnWidth
-    const dayOffset = Math.round(safeOffsetX / safeWidth)
-
     runOnJS(processFinalUpdate)(startHour, startMinute, durationMinutes, dayOffset)
   }
 
-  // --- 手势 ---
-  const longPressGesture = Gesture.LongPress()
-    .minDuration(300)
-    // ✨ 允许一定程度的手抖，防止因为手指微动导致长按失效
-    .maxDistance(100)
-    .onStart(() => {
-      runOnJS(setEditingEventId)(event.id)
-      runOnJS(ReactNativeHapticFeedback.trigger)('impactMedium', hapticOptions)
-    })
+  // 公共逻辑：公共的开始、更新、结束逻辑
+  const onPanStartCommon = (x: number, y: number) => {
+    'worklet'
+    isActive.value = true
+    startTop.value = top.value
+    startLeft.value = left.value
+  }
 
-  const dragBodyGesture = Gesture.Pan()
-    .enabled(isEditing)
-    .activeOffsetX([-5, 5])
-    .activeOffsetY([-5, 5])
-    .onStart(() => {
-      isDraggingBody.value = true
-      startTop.value = top.value
-      startLeft.value = left.value
-    })
-    .onUpdate(e => {
-      const rawTop = startTop.value + e.translationY
-      if (!isNaN(rawTop)) {
-        const snappedTop = Math.round(rawTop / GRID_HEIGHT) * GRID_HEIGHT
-        top.value = Math.max(0, snappedTop)
-      }
+  const onPanUpdateCommon = (translationX: number, translationY: number) => {
+    'worklet'
+    // Y轴：吸附
+    const rawTop = startTop.value + translationY
+    const snappedTop = Math.round(rawTop / GRID_HEIGHT) * GRID_HEIGHT
+    top.value = Math.max(0, snappedTop)
 
-      const nextLeft = startLeft.value + e.translationX
-      if (!isNaN(nextLeft)) {
-        left.value = nextLeft
-      }
-    })
-    .onEnd(() => {
-      isDraggingBody.value = false
-      runOnJS(ReactNativeHapticFeedback.trigger)('impactLight', hapticOptions)
-      commitUpdate()
-    })
+    // X轴：平滑
+    left.value = startLeft.value + translationX
+  }
 
+  const onPanEndCommon = () => {
+    'worklet'
+    const safeWidth = !dayColumnWidth || dayColumnWidth === 0 ? 1 : dayColumnWidth
+    const targetColIndex = Math.round(left.value / safeWidth)
+    const targetLeft = targetColIndex * safeWidth
+
+    left.value = withSpring(targetLeft, { mass: 0.5, damping: 12, stiffness: 100 })
+    commitUpdate()
+    isActive.value = false
+  }
+
+  // 防止 React Re-render (由 setEditingEventId 触发) 导致手势重置
+  const gesture = useMemo(() => {
+    // A. 瞬时拖拽 (编辑态专用)
+    // 逻辑：如果 isEditing 为 true，这个手势会生效。
+    const instantPan = Gesture.Pan()
+      .enabled(isEditing) // 这个属性可以动态变，只要不把手势从 Race 中移除即可
+      .onStart(e => {
+        onPanStartCommon(e.x, e.y)
+      })
+      .onUpdate(e => {
+        onPanUpdateCommon(e.translationX, e.translationY)
+      })
+      .onEnd(onPanEndCommon)
+
+    // B. 延时拖拽 (非编辑态/冷启动专用)
+    // ✨ 关键修复：永远不要 disable 它！
+    // 即使 isEditing 变成了 true，如果这个手势正在运行，必须让它跑完！
+    // Race 机制会保证：如果你已经是编辑态，手指放上去瞬间 instantPan 会赢，delayedPan 根本没机会跑，所以不 disable 也没事。
+    const delayedPan = Gesture.Pan()
+      .activateAfterLongPress(250)
+      .onStart(e => {
+        // 激活瞬间
+        runOnJS(ReactNativeHapticFeedback.trigger)('impactMedium', hapticOptions)
+        runOnJS(setEditingEventId)(event.id) // 触发重绘，但因为 useMemo，手势不会断
+        onPanStartCommon(e.x, e.y)
+      })
+      .onUpdate(e => {
+        onPanUpdateCommon(e.translationX, e.translationY)
+      })
+      .onEnd(onPanEndCommon)
+
+    // C. 点击手势
+    // 逻辑：如果 instantPan 没触发（比如只是轻点没移动），或者 delayedPan 还在等，Tap 会生效
+    const tap = Gesture.Tap()
+      .maxDuration(250)
+      .onEnd(() => {
+        if (isEditing) {
+          runOnJS(setEditingEventId)(null)
+        } else {
+          runOnJS(onPress)(event)
+        }
+      })
+
+    // D. 组合
+    // 永远返回同一个 Race 结构，不要用三元表达式切换结构！
+    return Gesture.Race(instantPan, delayedPan, tap)
+  }, [isEditing, event.id, dayColumnWidth, layout]) // 依赖项：只有这些变了才重建
+
+  // 调整大小事件：只在编辑模式下生效，调整对齐到网格顶部，结束时提交更新
   const resizeTopGesture = Gesture.Pan()
     .enabled(isEditing)
     .hitSlop({ top: 20, bottom: 20, left: 20, right: 20 })
@@ -177,6 +232,7 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
       runOnJS(ReactNativeHapticFeedback.trigger)('selection', hapticOptions)
     })
     .onUpdate(e => {
+      // 对齐到网格顶部
       const deltaY = e.translationY
       if (isNaN(deltaY)) return
       let newTop = startTop.value + deltaY
@@ -193,6 +249,7 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
       commitUpdate()
     })
 
+  // 调整大小事件：只在编辑模式下生效，调整对齐到网格顶部，结束时提交更新
   const resizeBottomGesture = Gesture.Pan()
     .enabled(isEditing)
     .hitSlop({ top: 20, bottom: 20, left: 20, right: 20 })
@@ -212,39 +269,38 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
       commitUpdate()
     })
 
-  const tapGesture = Gesture.Tap()
-    .enabled(!isEditing)
-    .maxDuration(250)
-    .onEnd(() => {
-      runOnJS(onPress)(event)
-      runOnJS(ReactNativeHapticFeedback.trigger)('selection', hapticOptions)
-    })
+  // 容器样式：根据编辑状态调整位置、大小和层级
+  const containerStyle = useAnimatedStyle(() => {
+    // 视觉状态由两者共同决定：只要按住(isActive) 或者 处于编辑态(isEditing) 都浮起
+    const showLifted = isEditing || isActive.value
 
-  const bodyComposedGesture = isEditing
-    ? Gesture.Race(dragBodyGesture, longPressGesture)
-    : Gesture.Race(longPressGesture, tapGesture)
+    return {
+      top: top.value,
+      left: left.value,
+      height: height.value,
+      width: width.value,
+      position: 'absolute',
+      zIndex: showLifted ? 999 : 1, // 浮起时层级最高
 
-  // 样式部分保持不变...
-  const containerStyle = useAnimatedStyle(() => ({
-    top: top.value,
-    left: left.value,
-    height: height.value,
-    width: width.value,
-    position: 'absolute',
-    zIndex: isEditing ? 999 : 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: isEditing ? 5 : 0 },
-    shadowOpacity: isEditing ? 0.35 : 0,
-    shadowRadius: isEditing ? 10 : 0,
-    elevation: isEditing ? 10 : 0,
-    transform: [{ scale: withSpring(isEditing ? 1.05 : 1) }],
-  }))
+      // 阴影与缩放：isActive 时(拖拽中)反馈更强
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: showLifted ? 5 : 1 },
+      shadowOpacity: showLifted ? 0.3 : 0,
+      shadowRadius: showLifted ? 8 : 0,
+      elevation: showLifted ? 5 : 0,
 
+      // 拖拽时放大 1.05倍，仅编辑态时放大 1.02倍
+      transform: [{ scale: withSpring(isActive.value ? 1.05 : isEditing ? 1.02 : 1) }],
+    }
+  })
+
+  // 句柄样式：根据编辑状态调整透明度和缩放
   const handleStyle = useAnimatedStyle(() => ({
     opacity: isEditing ? 1 : 0,
     transform: [{ scale: isEditing ? 1 : 0 }],
   }))
 
+  // 菜单样式：根据编辑状态调整透明度和位置
   const menuStyle = useAnimatedStyle(() => ({
     opacity: withTiming(isEditing ? 1 : 0),
     top: -MENU_OFFSET,
@@ -267,11 +323,7 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
   }
 
   return (
-    <Animated.View
-      style={containerStyle}
-      // ✨✨✨ 核心优化：HitSlop (热区扩大) ✨✨✨
-      // 即使手指按在卡片外围 10px，也能激活卡片，避免按到背景触发创建
-      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+    <Animated.View style={containerStyle} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
       <Animated.View style={[styles.menuContainer, menuStyle]}>
         <TouchableOpacity style={styles.menuItem} onPress={handleCopy}>
           <Text style={styles.menuText}>拷贝</Text>
@@ -288,7 +340,7 @@ export const DraggableEvent: React.FC<DraggableEventProps> = ({
         </Animated.View>
       </GestureDetector>
 
-      <GestureDetector gesture={bodyComposedGesture}>
+      <GestureDetector gesture={gesture}>
         <Animated.View style={{ flex: 1 }}>
           <ScheduleEvent event={event} style={{ flex: 1, borderRadius: isEditing ? 6 : 4 }} />
         </Animated.View>
