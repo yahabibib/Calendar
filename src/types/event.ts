@@ -29,10 +29,18 @@ export interface CalendarEvent {
   rrule?: RecurrenceRule | string
   alarms?: number[]
 
-  _isInstance?: boolean  // 标识是否为重复生成的实例
-  _originalId?: string   // 指向母日程的 ID
+  // 黑名单 (用于母日程): 记录被修改/删除的实例原始时间
+  exdates?: string[] 
 
-  exdates?: string[]  // 例外日期，用于排除某些特定的重复实例
+  // 用于例外日程 (Exception): 指向它所属的母日程 ID
+  recurringEventId?: string 
+
+  // 用于例外日程: 记录它原本应该是几点开始的 (用于匹配 exdates)
+  originalStartTime?: string
+
+  // 运行时字段
+  _isInstance?: boolean  // 是否是母日程的实例
+  _originalId?: string  // 母日程的 ID
 }
 
 export const MOCK_EVENTS: CalendarEvent[] = [

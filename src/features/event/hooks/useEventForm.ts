@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { Alert } from 'react-native'
 import { addHours, isBefore, format } from 'date-fns'
+import uuid from 'react-native-uuid'
 import { useEventStore } from '../../../store/eventStore'
 import { CalendarEvent, RecurrenceFrequency, RecurrenceRule } from '../../../types/event'
 
@@ -78,7 +79,6 @@ export const useEventForm = (initialDateStr?: string, event?: CalendarEvent) => 
     return `${alarmOffset} 分钟前`
   }
 
-  // ✨✨✨ 核心修改：接收 onSuccess 回调 ✨✨✨
   const saveEvent = (onSuccess: () => void) => {
     if (!title.trim()) return // 校验失败，什么都不做
     if (isBefore(endDate, startDate) && !isAllDay) {
@@ -97,7 +97,7 @@ export const useEventForm = (initialDateStr?: string, event?: CalendarEvent) => 
     }
 
     const newEventData: CalendarEvent = {
-      id: event?.id || Math.random().toString(),
+      id: event?.id || (uuid.v4() as string),
       title: title.trim(),
       location: location.trim(),
       description: description.trim(),
