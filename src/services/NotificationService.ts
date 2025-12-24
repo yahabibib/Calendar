@@ -8,6 +8,50 @@ import { RRule } from 'rrule'
 import { addDays, subMinutes, differenceInMinutes } from 'date-fns'
 import { CalendarEvent, RecurrenceRule } from '../types/event'
 
+import { NativeModules } from 'react-native';
+
+const { CalendarLiveActivity } = NativeModules;
+
+// 1. 开启灵动岛
+// 注意：时间戳传毫秒 (Date.now())，我们在 Swift 里除了 1000
+const startLiveActivity = (event: CalendarEvent) => {
+  if (CalendarLiveActivity) {
+    const now = Date.now();
+    const endTime = new Date(event.endDate).getTime();
+    
+    CalendarLiveActivity.startActivity(
+      event.title,
+      now,
+      endTime,
+      event.location || null
+    );
+  }
+};
+
+// 2. 结束灵动岛
+const endLiveActivity = () => {
+  if (CalendarLiveActivity) {
+    CalendarLiveActivity.endActivity();
+  }
+};
+
+export const debugCheckScheduledNotifications = async () => {
+  const ids = await notifee.getTriggerNotificationIds();
+  console.log('=== 🔔 当前排队的通知列表 ===');
+  console.log(`总数: ${ids.length}`);
+  ids.forEach(id => {
+    // 我们的 ID 格式: eventId_timestamp_offset
+    const parts = id.split('_');
+    if (parts.length >= 3) {
+      const time = new Date(parseInt(parts[1]));
+      console.log(`ID: ${id.slice(0, 8)}... | 响铃时间: ${time.toLocaleString()} | Offset: ${parts[2]}`);
+    } else {
+      console.log(`ID: ${id} (非标准格式)`);
+    }
+  });
+  console.log('===============================');
+};
+
 // 预取窗口：只注册未来多少天内的重复提醒 (iOS 限制本地通知数量，不能无限注册)
 const RECURRENCE_WINDOW_DAYS = 14 
 

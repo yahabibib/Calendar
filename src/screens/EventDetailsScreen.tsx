@@ -10,6 +10,7 @@ import { DetailTimeCard } from '../features/event/details/DetailTimeCard'
 import { LocationMapCard } from '../features/event/details/LocationMapCard'
 import { MetaInfoCard } from '../features/event/details/MetaInfoCard'
 import { ActionFooter } from '../features/event/details/ActionFooter'
+import { LiveActivityCard } from '../features/event/details/LiveActivityCard'
 
 type EventDetailsRouteProp = RouteProp<RootStackParamList, 'EventDetails'>
 
@@ -46,7 +47,6 @@ export const EventDetailsScreen = () => {
     })
   }, [navigation, event])
 
-  // ✨✨✨ 修复后的删除逻辑 ✨✨✨
   const handleDelete = () => {
     // 场景 A: 重复日程的分身 (影子实例)
     if (event._isInstance && event._originalId) {
@@ -88,23 +88,24 @@ export const EventDetailsScreen = () => {
 
   return (
     <ScrollView style={styles.container}>
-      {/* 1. 头部大标题 */}
+      {/* 头部大标题 */}
       <DetailHeader title={event.title} color={event.color || '#2196F3'} />
 
-      {/* 2. 时间卡片 */}
-      {/* ✅ 修复点：恢复传递整个 event 对象，匹配 DetailTimeCard 的定义 */}
+      {/* 时间卡片 */}
       <DetailTimeCard event={event} />
 
-      {/* 3. 地图卡片 */}
+      {/* 灵动岛卡片 */}
+      <LiveActivityCard event={event} />
+
+      {/* 地图卡片 */}
       {event.location ? (
         <LocationMapCard location={event.location} coordinates={event.coordinates} />
       ) : null}
 
-      {/* 4. 详细信息卡片 */}
-      {/* 假设 MetaInfoCard 也接收 event 对象，保持一致 */}
+      {/* 详细信息卡片 */}
       <MetaInfoCard event={event} />
 
-      {/* 5. 底部删除 */}
+      {/* 底部删除 */}
       <ActionFooter onDelete={handleDelete} />
     </ScrollView>
   )

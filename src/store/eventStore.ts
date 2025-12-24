@@ -150,29 +150,31 @@ export const useEventStore = create<EventStore>()(
           } else if (mode === 'all') {
             // 🏷 模式 3：所有日程 (Rewrite History)
             
-            // 计算时间偏移量 (Diff)
-            const oldInstanceDate = parseISO(originalStart)
-            const newInstanceDate = parseISO(updatedInstance.startDate)
-            const diff = differenceInMilliseconds(newInstanceDate, oldInstanceDate)
+            // 1. 计算开始时间的偏移量 (Translation Diff)
+            const oldInstanceStart = parseISO(originalStart)
+            const newInstanceStart = parseISO(updatedInstance.startDate)
+            const startDiff = differenceInMilliseconds(newInstanceStart, oldInstanceStart)
 
-            // 应用偏移量到母日程
-            const newMasterStart = addMilliseconds(parseISO(masterEvent.startDate), diff)
-            const newMasterEnd = addMilliseconds(parseISO(masterEvent.endDate), diff)
+            // 2. 计算新的时长 (Duration)
+            // ✨ 修复：不再盲目平移 EndTime，而是根据新实例的时长重新计算
+            const newInstanceEnd = parseISO(updatedInstance.endDate)
+            const newDuration = differenceInMilliseconds(newInstanceEnd, newInstanceStart)
+
+            // 3. 应用到母日程
+            const newMasterStart = addMilliseconds(parseISO(masterEvent.startDate), startDiff)
+            const newMasterEnd = addMilliseconds(newMasterStart, newDuration) // ✨ Start + NewDuration
 
             events[masterIndex] = {
-              ...masterEvent,     // 1. 底层继承
-              ...cleanInstance,   // 2. 应用所有修改 (包括 rrule)
+              ...masterEvent,     
+              ...cleanInstance,   
               
-              // 3. 强制修正时间：必须使用平移后的时间，不能直接用 instance 的时间
-              id: masterEvent.id, // ID 不变
+              id: masterEvent.id, 
               startDate: newMasterStart.toISOString(),
-              endDate: newMasterEnd.toISOString(),
+              endDate: newMasterEnd.toISOString(), // ✨ 使用包含新时长的结束时间
               
-              // 通常保留原有的 exdates (除非业务决定重置例外)
               exdates: masterEvent.exdates, 
             }
             
-            // 🔔 母日程变更，重新调度
             notificationService.scheduleEvent(events[masterIndex])
           }
 
