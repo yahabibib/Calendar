@@ -1,10 +1,9 @@
 import { StyleSheet, Platform } from 'react-native';
 import { COLORS } from '../../../../theme';
+import { CALENDAR_ROW_HEIGHT } from '../../constants'; // ✨ 引入统一高度
 
-export const MONTH_TITLE_HEIGHT = 50;
+export const MONTH_TITLE_HEIGHT = 40;
 
-// 为了在样式文件中使用 isIpad 判断，我们可以导出一个函数，或者直接在这里判断
-// 但为了保持纯粹，我们尽量让样式静态化，动态部分通过 props 或行内样式传入
 const isPad = Platform.OS === 'ios' && Platform.isPad;
 
 export const styles = StyleSheet.create({
@@ -12,14 +11,14 @@ export const styles = StyleSheet.create({
   monthHeader: {
     height: MONTH_TITLE_HEIGHT,
     justifyContent: 'flex-end',
-    paddingBottom: 10,
+    paddingBottom: 8,
   },
   monthHeaderText: {
-    fontSize: 24,
+    fontSize: 22, // 稍微调小一点更精致
     fontWeight: '700',
     color: COLORS.primary,
     textAlign: 'left',
-    marginLeft: 5,
+    marginLeft: 12,
   },
   monthHeaderTextYear: {
     color: '#000',
@@ -31,32 +30,32 @@ export const styles = StyleSheet.create({
   },
   cell: {
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 8,
+    justifyContent: 'center', 
+    // height: CALENDAR_ROW_HEIGHT, 
     borderBottomWidth: 0.5,
     borderBottomColor: '#E5E5EA',
-    // 竖线逻辑：iPad 显示，手机不显示
     borderRightWidth: isPad ? 0.5 : 0,
     borderRightColor: '#E5E5EA',
   },
   dayCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36, // 统一为 36
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   selectedCircle: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary, // 改回主题色，或保持黑色看您喜好
   },
   todayCircle: {
     backgroundColor: '#F2F2F7',
   },
+  // ✨ 字体样式 (标准版)
   dayText: {
-    fontSize: 19,
+    fontSize: 17, // 统一为 17
     color: '#000',
     fontWeight: '400',
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
   selectedText: {
     color: 'white',
@@ -68,6 +67,7 @@ export const styles = StyleSheet.create({
   },
   dotContainer: {
     flexDirection: 'row',
-    marginTop: 4,
+    position: 'absolute',
+    bottom: 6, // 统一点点的位置
   },
 });

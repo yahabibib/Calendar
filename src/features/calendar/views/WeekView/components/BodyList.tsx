@@ -3,50 +3,65 @@ import { View, StyleSheet } from 'react-native'
 import { FlatList } from 'react-native-gesture-handler'
 import { isSameDay, isValid, setHours, setMinutes } from 'date-fns'
 import { useNavigation } from '@react-navigation/native'
+import Animated, { FadeIn } from 'react-native-reanimated'
+
 import { useWeekViewContext } from '../WeekViewContext'
 import { CurrentTimeIndicator } from '../../../components/CurrentTimeIndicator'
 import { HOUR_HEIGHT } from '../../../../../theme/layout'
 import { EventColumn } from './EventColumn'
 import { DragCreateWrapper } from './DragCreateWrapper'
-// ✨ 引入新工具
 import { getEventsForDate } from '../../../../../utils/recurrence'
 
-const DayBodyItem = memo(({ date, width, events, onEventPress, onCreateEvent }: any) => {
-  const isToday = useMemo(() => isValid(date) && isSameDay(date, new Date()), [date])
-  // 这里的 events 已经是 getEventsForDate 计算好的当日实例列表了
-  const regularEvents = useMemo(() => events.filter((e: any) => !e.isAllDay), [events])
+interface DayBodyItemProps {
+  date: Date
+  width: number
+  events: any[]
+  onEventPress?: (e: any) => void
+  onCreateEvent: (ts: number, h: number, m: number) => void
+  areEventsVisible: boolean
+}
 
-  return (
-    <View
-      style={{
-        width,
-        height: HOUR_HEIGHT * 24,
-        borderRightWidth: 1,
-        borderRightColor: '#f5f5f5',
-        position: 'relative',
-        overflow: 'visible',
-        zIndex: 1,
-      }}>
-      <DragCreateWrapper date={date} onCreateEvent={onCreateEvent}>
-        <View style={{ flex: 1 }}>
-          <EventColumn
-            events={regularEvents}
-            width={width}
-            onEventPress={onEventPress}
-            dayDate={date}
-          />
-          {isToday && <CurrentTimeIndicator />}
-        </View>
-      </DragCreateWrapper>
-    </View>
-  )
-})
+const DayBodyItem = memo(
+  ({ date, width, events, onEventPress, onCreateEvent, areEventsVisible }: DayBodyItemProps) => {
+    const isToday = useMemo(() => isValid(date) && isSameDay(date, new Date()), [date])
+
+    return (
+      <View
+        style={{
+          width,
+          height: HOUR_HEIGHT * 24,
+          borderRightWidth: 1,
+          borderRightColor: '#f5f5f5',
+          position: 'relative',
+          overflow: 'visible',
+          zIndex: 1,
+        }}>
+        <DragCreateWrapper date={date} onCreateEvent={onCreateEvent}>
+          <View style={{ flex: 1 }}>
+            {areEventsVisible ? (
+              <Animated.View style={{ flex: 1 }} entering={FadeIn.duration(300)}>
+                <EventColumn
+                  events={events.filter((e: any) => !e.isAllDay)}
+                  width={width}
+                  onEventPress={onEventPress}
+                  dayDate={date}
+                />
+              </Animated.View>
+            ) : null}
+
+            {isToday && <CurrentTimeIndicator />}
+          </View>
+        </DragCreateWrapper>
+      </View>
+    )
+  },
+)
 
 export const BodyList = () => {
   const {
     dayList,
     dayColumnWidth,
-    events, // 这是 Store 里的全量元数据
+    events,
     bodyListRef,
     onBodyScroll,
     onBodyBeginDrag,
@@ -56,7 +71,7 @@ export const BodyList = () => {
     isWideScreen,
     initialIndex,
     editingEventId,
-    setEditingEventId,
+    areEventsVisible,
   } = useWeekViewContext()
 
   const isEditing = editingEventId !== null
@@ -81,11 +96,10 @@ export const BodyList = () => {
           <DayBodyItem
             date={item}
             width={dayColumnWidth}
-            // ✨✨✨ 核心修改：使用 getEventsForDate 计算重复实例 ✨✨✨
-            // 之前的 filter 只能看到当天的日程，现在可以看到根据 RRULE 生成的未来日程
-            events={getEventsForDate(events, item)}
+            events={areEventsVisible ? getEventsForDate(events, item) : []}
             onEventPress={onEventPress}
             onCreateEvent={handleCreateEvent}
+            areEventsVisible={areEventsVisible}
           />
         )}
         horizontal

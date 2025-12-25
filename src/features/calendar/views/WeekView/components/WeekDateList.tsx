@@ -1,11 +1,13 @@
 import React, { memo } from 'react'
-import { View, Text, FlatList, StyleSheet } from 'react-native'
+import { View, Text, FlatList, StyleSheet, Dimensions, useWindowDimensions } from 'react-native'
 import { format, isSameDay } from 'date-fns'
 import { useWeekViewContext } from '../WeekViewContext'
 import { COLORS } from '../../../../../theme'
-import { WEEK_MODE_HEIGHT } from '../../../constants' // ✨ 引入常量
+import { WEEK_MODE_HEIGHT } from '../../../constants'
 
-const WeekDateItem = memo(({ date, width, isInViewWindow, isSelected }: any) => {
+const { width: SCREEN_WIDTH } = Dimensions.get('window')
+
+const WeekDateItem = memo(({ date, width, isFocused, isSelected }: any) => {
   const isToday = isSameDay(date, new Date())
 
   let containerStyle = styles.dateCircle
@@ -15,9 +17,14 @@ const WeekDateItem = memo(({ date, width, isInViewWindow, isSelected }: any) => 
     containerStyle = [styles.dateCircle, styles.selectedCircle]
     textStyle = [styles.dateText, styles.selectedDateText]
   } else if (isToday) {
+    containerStyle = [styles.dateCircle, styles.todayCircle]
     textStyle = [styles.dateText, styles.todayDateText]
-  } else if (!isInViewWindow) {
-    textStyle = [styles.dateText, { color: '#ccc' }]
+  } else if (isFocused) {
+    // textStyle = [styles.dateText, { color: '#000', fontWeight: '500' }]
+    containerStyle = [styles.dateCircle, styles.focusedCircle]
+    textStyle = [styles.dateText, styles.focusedDateText]
+  } else {
+    textStyle = [styles.dateText, { color: '#000' }]
   }
 
   return (
@@ -33,60 +40,55 @@ export const WeekDateList = () => {
   const {
     dayList,
     weekDateItemWidth,
-    weekListRef,
-    visibleStartDateIndex,
-    isWideScreen,
-    onWeekScroll,
-    onWeekBeginDrag,
-    onScrollEnd,
-    initialIndex,
+    headerListRef,
+    focusedDate,
     selectedDate,
+    isWideScreen,
+    onHeaderScroll,
+    onHeaderBeginDrag,
+    onScrollEnd,
   } = useWeekViewContext()
 
-  const numVisibleColumns = isWideScreen ? 7 : 2
+  const { width: SCREEN_WIDTH } = useWindowDimensions()
 
   return (
-    // ✨ 使用常量控制高度
     <View style={{ height: WEEK_MODE_HEIGHT, backgroundColor: 'white' }}>
       <FlatList
-        ref={weekListRef}
+        ref={headerListRef}
         data={dayList}
-        keyExtractor={item => item.toISOString()}
-        extraData={`${visibleStartDateIndex}_${selectedDate}`}
-        renderItem={({ item, index }) => {
-          const isInWindow =
-            index >= visibleStartDateIndex && index < visibleStartDateIndex + numVisibleColumns
+        keyExtractor={(item, index) => item?.toISOString?.() || index.toString()}
+        extraData={`${focusedDate.toISOString()}_${selectedDate}`}
+        renderItem={({ item }) => {
+          if (!item) return null // 安全检查
+          const isFocused = isSameDay(item, focusedDate)
           return (
             <WeekDateItem
               date={item}
               width={weekDateItemWidth}
-              isInViewWindow={isInWindow}
+              isFocused={isFocused}
               isSelected={isSameDay(item, new Date(selectedDate))}
             />
           )
         }}
         horizontal
+        showsHorizontalScrollIndicator={false}
+        // 滑动操作
         scrollEnabled={true}
-        onScroll={onWeekScroll}
-        onScrollBeginDrag={onWeekBeginDrag}
+        onScroll={onHeaderScroll}
+        onScrollBeginDrag={onHeaderBeginDrag}
         onMomentumScrollEnd={onScrollEnd}
         onScrollEndDrag={onScrollEnd}
         scrollEventThrottle={16}
-        snapToInterval={weekDateItemWidth}
+        // 翻页操作
+        pagingEnabled={!isWideScreen}
+        snapToInterval={SCREEN_WIDTH}
         decelerationRate="fast"
+        // 布局计算
         getItemLayout={(data, index) => ({
           length: weekDateItemWidth,
           offset: weekDateItemWidth * index,
           index,
         })}
-        showsHorizontalScrollIndicator={false}
-        initialScrollIndex={initialIndex}
-        onScrollToIndexFailed={info => {
-          const wait = new Promise(resolve => setTimeout(resolve, 500))
-          wait.then(() => {
-            weekListRef.current?.scrollToIndex({ index: info.index, animated: false })
-          })
-        }}
       />
     </View>
   )
@@ -96,23 +98,26 @@ const styles = StyleSheet.create({
   itemContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    height: WEEK_MODE_HEIGHT, // 确保子项高度撑满
+    height: WEEK_MODE_HEIGHT,
   },
   dateCircle: {
-    width: 40, // ✨ 稍微加大圆圈
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
   selectedCircle: {
-    backgroundColor: 'black',
+    backgroundColor: COLORS.primary,
+  },
+  todayCircle: {
+    backgroundColor: '#F2F2F7',
   },
   dateText: {
-    fontSize: 18, // ✨ 微调字体
-    color: '#000',
-    fontWeight: '500',
+    fontSize: 17,
+    fontWeight: '400',
+    letterSpacing: -0.3,
   },
   selectedDateText: {
     color: 'white',
@@ -121,5 +126,18 @@ const styles = StyleSheet.create({
   todayDateText: {
     color: COLORS.primary,
     fontWeight: '600',
+  },
+  focusedCircle: {
+    backgroundColor: '#ff3b30', // 鲜艳的红色，非常醒目
+  },
+  focusedDateText: {
+    color: 'white', // 白字
+    fontWeight: '600',
+  },
+  // ⚫️ 普通文字
+  dateText: {
+    fontSize: 17,
+    fontWeight: '400',
+    letterSpacing: -0.3,
   },
 })

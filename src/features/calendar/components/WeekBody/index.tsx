@@ -1,5 +1,6 @@
 import React from 'react'
 import { View, StyleSheet, ScrollView, Text } from 'react-native'
+import Animated, { useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated'
 import { WeekDateList } from '../../views/WeekView/components/WeekDateList'
 import { AllDayList } from '../../views/WeekView/components/AllDayList'
 import { BodyList } from '../../views/WeekView/components/BodyList'
@@ -20,6 +21,43 @@ export const WeekAllDayRow = () => {
       </View>
       <AllDayList />
     </View>
+  )
+}
+
+interface AnimatedAllDayProps {
+  expandProgress: Animated.SharedValue<number>
+}
+
+export const AnimatedWeekAllDayRow: React.FC<AnimatedAllDayProps> = ({ expandProgress }) => {
+  const { derivedHeaderHeight } = useWeekViewContext()
+
+  // 动画样式：
+  // 当 progress 从 0.5 (开始进入Week) 到 0 (完全Week) 时，高度展开
+  // 反之，从 0 到 0.5 时，高度收缩
+  const animatedStyle = useAnimatedStyle(() => {
+    const height = interpolate(
+      expandProgress.value,
+      [0.3, 0], // 在动画的最后阶段展开，避免太早出现遮挡视线
+      [0, derivedHeaderHeight],
+      Extrapolation.CLAMP,
+    )
+
+    return {
+      height,
+      opacity: interpolate(expandProgress.value, [0.1, 0], [0, 1]), // 快结束时才显示
+      overflow: 'hidden',
+    }
+  })
+
+  return (
+    <Animated.View style={[animatedStyle, { width: '100%', zIndex: 9 }]}>
+      <View style={styles.allDayContainer}>
+        <View style={styles.allDayLabel}>
+          <Text style={styles.labelText}>全天</Text>
+        </View>
+        <AllDayList />
+      </View>
+    </Animated.View>
   )
 }
 
@@ -63,6 +101,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
     width: '100%',
+    height: '100%',
     minHeight: 30, // 给全天事件留出空间
     zIndex: 10,
   },
