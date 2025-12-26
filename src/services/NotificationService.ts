@@ -13,7 +13,6 @@ import { NativeModules } from 'react-native';
 const { CalendarLiveActivity } = NativeModules;
 
 // 1. 开启灵动岛
-// 注意：时间戳传毫秒 (Date.now())，我们在 Swift 里除了 1000
 const startLiveActivity = (event: CalendarEvent) => {
   if (CalendarLiveActivity) {
     const now = Date.now();
@@ -57,7 +56,7 @@ const RECURRENCE_WINDOW_DAYS = 14
 
 class NotificationService {
   
-  // 1. 初始化 & 权限请求
+  // 发起权限请求
   async requestPermission() {
     const settings = await notifee.requestPermission()
     if (settings.authorizationStatus >= AuthorizationStatus.AUTHORIZED) {
@@ -68,7 +67,7 @@ class NotificationService {
     return false
   }
 
-  // 2. 为一个日程调度所有相关的提醒
+  // 注册日程提醒
   async scheduleEvent(event: CalendarEvent) {
     // 先清理旧的 (防止修改时间后，旧的提醒还在)
     await this.cancelEvent(event.id)
@@ -82,20 +81,16 @@ class NotificationService {
       for (const offsetMinutes of event.alarms) {
         // 计算响铃时间：日程开始时间 - 提前量
         const triggerDate = subMinutes(date, offsetMinutes)
-        
         // 如果时间已经过去了，就不注册了
         if (triggerDate.getTime() <= Date.now()) continue
-
         // 生成唯一 ID
         const notificationId = this.generateId(event.id, date.getTime(), offsetMinutes)
-
         try {
           // 创建触发器
           const trigger: TimestampTrigger = {
             type: TriggerType.TIMESTAMP,
             timestamp: triggerDate.getTime(), 
           }
-
           // 发送调度请求
           await notifee.createTriggerNotification(
             {
@@ -118,21 +113,15 @@ class NotificationService {
     }
   }
 
-  // 3. 取消一个日程的所有提醒
+  // 取消日程提醒
   async cancelEvent(eventId: string) {
-    // Notifee 没有直接按 tag 取消的功能 (iOS)，所以我们得遍历
-    // 策略：获取所有挂起的通知，找到 ID 以 eventId 开头的，删掉
     const pendingNotifications = await notifee.getTriggerNotificationIds()
-    
     const idsToCancel = pendingNotifications.filter(id => id.startsWith(`${eventId}_`))
-    
     if (idsToCancel.length > 0) {
       await notifee.cancelTriggerNotifications(idsToCancel)
       console.log(`[Notification] Cancelled ${idsToCancel.length} for event ${eventId}`)
     }
   }
-
-  // --- Helpers ---
 
   // 创建安卓渠道 (在 App 启动时调用一次即可)
   async createChannel() {
@@ -149,6 +138,7 @@ class NotificationService {
     return `${eventId}_${timestamp}_${offset}`
   }
 
+  // 提醒文案
   private getBodyText(offset: number) {
     if (offset === 0) return '日程现在开始'
     if (offset < 60) return `${offset} 分钟后开始`
@@ -156,16 +146,15 @@ class NotificationService {
     return `${offset} 分钟后开始`
   }
 
-  // 核心：计算触发时间点列表
+  // 计算触发时间点列表
   private calculateTriggerDates(event: CalendarEvent): Date[] {
     const start = new Date(event.startDate)
-    
-    // A. 单次日程
+    // 单次日程直接返回
     if (!event.rrule) {
       return [start]
     }
 
-    // B. 重复日程：计算未来 N 天的实例
+    // 重复日程：计算未来 N 天的实例
     try {
       // 构造 RRule 对象
       let rruleOptions: any = {
@@ -173,8 +162,6 @@ class NotificationService {
       }
       
       if (typeof event.rrule === 'string') {
-        // 如果需要支持字符串格式，这里需要 RRule.fromString，暂时假设我们 store 里都是对象
-        // 或者简单处理：暂不处理 string 类型的 rrule 用于提醒（MVP）
         console.warn('[Notification] String rrule not fully supported in simple scheduler yet')
         return [start] 
       } else {
@@ -194,8 +181,6 @@ class NotificationService {
       const windowEnd = addDays(now, RECURRENCE_WINDOW_DAYS)
       
       // 获取这期间的所有日期 (包括今天之前的，如果今天还没响铃的话)
-      // 注意：rule.between 的 start 如果是过去时间，会包含过去所有的点，这没必要。
-      // 我们取 max(eventStart, now - 24h) 作为计算起点，避免计算太久远的历史
       const calcStart = start > now ? start : subMinutes(now, 24 * 60) 
       
       const instances = rule.between(calcStart, windowEnd, true)

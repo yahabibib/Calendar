@@ -1,5 +1,6 @@
 export type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
 
+// 重复日程
 export interface RecurrenceRule {
   freq: RecurrenceFrequency // 重复频率
   interval?: number // 重复间隔
@@ -7,11 +8,13 @@ export interface RecurrenceRule {
   count?: number  // 重复次数
 }
 
+// 地图定位
 export interface LatLng {
   latitude: number
   longitude: number
 }
 
+// 日程
 export interface CalendarEvent {
   id: string
   title: string
