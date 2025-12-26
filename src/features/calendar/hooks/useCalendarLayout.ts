@@ -1,57 +1,57 @@
-import { useSharedValue, withSpring, useDerivedValue, interpolate, Extrapolation, runOnUI } from 'react-native-reanimated';
-import { Dimensions } from 'react-native';
+import { useMemo } from 'react'
+import { useWindowDimensions } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { 
+  MONTH_HEADER_HEIGHT, 
+  WEEK_MODE_HEIGHT, 
+} from '../constants'
+import { MONTH_TITLE_HEIGHT } from '../components/MonthGrid/styles'
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+export interface CalendarLayout {
+  screenWidth: number
+  screenHeight: number
+  monthRowHeight: number   // 动态计算月视图行高
+  weekRowHeight: number    // 周视图固定行高
+  monthContentHeight: number // 月视图总内容高度
+  headerHeight: number     // 顶部总高度
+  insets: { top: number; bottom: number }   // 安全区域
+}
 
-// 🔧 配置项：根据你的 UI 设计调整这些值
-const WEEK_ROW_HEIGHT = 52; // 单行高度 (周视图高度)
-const MONTH_MAX_HEIGHT = 320; // 月视图总高度 (或者动态计算)
+export const useCalendarLayout = () => {
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions()
+  const insets = useSafeAreaInsets()
 
-export const useCalendarLayout = (initialMode: 'week' | 'month' | 'year') => {
-  // 1. 核心驱动值：0 = Week, 1 = Month
-  // 使用数值 0-1 方便做插值 (Interpolation)
-  const expandProgress = useSharedValue(initialMode === 'month' ? 1 : 0);
+  // 计算动态月视图行高
+  const dynamicMonthRowHeight = useMemo(() => {
+    // 剩余空间 = 屏幕高 - 顶部安全区 - 导航头 - 底部安全区 - 底部Padding(20) - 月标题
+    const availableSpace =
+      SCREEN_HEIGHT -
+      insets.top -
+      MONTH_HEADER_HEIGHT -
+      insets.bottom -
+      20 -
+      MONTH_TITLE_HEIGHT
 
-  // 2. 容器高度动画
-  const containerHeight = useDerivedValue(() => {
-    return interpolate(
-      expandProgress.value,
-      [0, 1],
-      [WEEK_ROW_HEIGHT, MONTH_MAX_HEIGHT],
-      Extrapolation.CLAMP
-    );
-  });
+    // 均分 6 行
+    const calculatedHeight = availableSpace / 6
 
-  // 3. 透明度/显隐动画
-  // 当 progress < 0.5 时，我们认为更接近周视图
-  const isWeekModeActive = useDerivedValue(() => expandProgress.value < 0.5);
+    // 兜底策略：不能小于周视图的高度
+    return Math.max(calculatedHeight, WEEK_MODE_HEIGHT)
+  }, [SCREEN_HEIGHT, insets.top, insets.bottom])
 
-  // 4. 切换模式动作
-  const toggleMode = (targetMode: 'week' | 'month') => {
-    'worklet'; // 标记为 UI 线程运行
-    if (targetMode === 'month') {
-      expandProgress.value = withSpring(1, {
-        mass: 1,
-        damping: 15,
-        stiffness: 100,
-        overshootClamping: false,
-      });
-    } else {
-      expandProgress.value = withSpring(0, {
-        mass: 1,
-        damping: 15,
-        stiffness: 100,
-        overshootClamping: false,
-      });
-    }
-  };
+  // 计算月视图内容总高度：6行高度 + 标题高度 + 底部Padding
+  const MONTH_CONTENT_HEIGHT = useMemo(() => {
+    return dynamicMonthRowHeight * 6 + MONTH_TITLE_HEIGHT + 20
+  }, [dynamicMonthRowHeight])
 
   return {
-    expandProgress,
-    containerHeight,
-    isWeekModeActive,
-    toggleMode,
-    WEEK_ROW_HEIGHT,
-    MONTH_MAX_HEIGHT,
-  };
-};
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT,
+    insets,
+    dynamicMonthRowHeight, 
+    MONTH_CONTENT_HEIGHT,
+    WEEK_MODE_HEIGHT,
+    MONTH_HEADER_HEIGHT,
+    MONTH_TITLE_HEIGHT
+  }
+}

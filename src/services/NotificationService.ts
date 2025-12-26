@@ -67,6 +67,7 @@ class NotificationService {
     return false
   }
 
+  // TODO: 注册提醒管理上限等机制
   // 注册日程提醒
   async scheduleEvent(event: CalendarEvent) {
     // 先清理旧的 (防止修改时间后，旧的提醒还在)

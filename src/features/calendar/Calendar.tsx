@@ -11,18 +11,16 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated'
 import { startOfMonth, getDay, format, isSameMonth } from 'date-fns'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-
 import { CalendarHeader } from './components/CalendarHeader'
 import { MonthBody } from './components/MonthBody'
 import { WeekDateHeader, AnimatedWeekAllDayRow, WeekGridPart } from './components/WeekBody'
 import { YearView } from './views/YearView'
 import { WeekViewProvider } from './views/WeekView/WeekViewContext'
-import { CALENDAR_ROW_HEIGHT, WEEK_MODE_HEIGHT, MONTH_HEADER_HEIGHT } from './constants'
-import { MONTH_TITLE_HEIGHT } from './components/MonthGrid'
 import { TransitionMonthView } from './components/TransitionMonthView'
 import { CalendarProps } from '../../types/event'
 import { LayoutRect } from './components/MiniMonthGrid'
+import { useCalendarLayout } from './hooks/useCalendarLayout'
+import { StandardCalendar } from './components/StandardCalendar'
 
 // 默认空坐标
 const DEFAULT_RECT: LayoutRect = { x: 0, y: 0, width: 0, height: 0 }
@@ -46,34 +44,15 @@ const getRowIndex = (date: Date | string | number): number => {
 }
 
 export const Calendar: React.FC<CalendarProps> = props => {
-  const insets = useSafeAreaInsets()
-  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions()
-
-  // 年视图的月份动态行高度
-  const dynamicMonthRowHeight = useMemo(() => {
-    const availableSpace =
-      SCREEN_HEIGHT -
-      insets.top -
-      MONTH_HEADER_HEIGHT -
-      insets.bottom -
-      20 - // bottom padding
-      MONTH_TITLE_HEIGHT // 月内部标题
-
-    // 分成 6 行
-    const rowHeight = availableSpace / 6
-
-    // 兜底
-    return Math.max(rowHeight, WEEK_MODE_HEIGHT)
-  }, [SCREEN_HEIGHT, insets.top, insets.bottom])
-
-  // 月视图的总内容高度 (用于容器动画)
-  const MONTH_CONTENT_HEIGHT = dynamicMonthRowHeight * 6 + MONTH_TITLE_HEIGHT + 20
-
-  // 选定日期的行索引
-  const rowIndex = useMemo(() => getRowIndex(selectedDate), [selectedDate])
-
-  // 目标位移：负的 (当前行数 * 动态行高 + 月份内部标题)
-  const targetOffsetY = -(rowIndex * dynamicMonthRowHeight) - MONTH_TITLE_HEIGHT
+  // 布局配置
+  const {
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT,
+    insets,
+    dynamicMonthRowHeight,
+    MONTH_CONTENT_HEIGHT,
+    WEEK_MODE_HEIGHT,
+  } = useCalendarLayout()
 
   // 视图模型切换
   const [rootMode, setRootMode] = useState<'year' | 'standard'>('standard')
@@ -156,8 +135,6 @@ export const Calendar: React.FC<CalendarProps> = props => {
   }, [rootMode, viewMode])
 
   const handleYearSelect = (date: Date, layout: LayoutRect) => {
-    console.log('📅 Year selected:', format(date, 'yyyy-MM'), layout)
-
     // 1. 锁定数据
     setSourceRect(layout)
     setSelectedDate(date)
@@ -348,13 +325,6 @@ export const Calendar: React.FC<CalendarProps> = props => {
       handleBackToYear()
     }
   }
-  // const handleYearSelect = (date: Date) => {
-  //   setSelectedDate(date)
-  //   setRootMode('standard')
-  //   setViewMode('month')
-  //   expandProgress.value = 1
-  //   setVisualOffsetY(0)
-  // }
   const handleTitlePress = () => {
     if (viewMode === 'month') handleBackToYear()
   }
@@ -371,79 +341,93 @@ export const Calendar: React.FC<CalendarProps> = props => {
         <YearView currentYear={selectedDate} onMonthSelect={handleYearSelect} />
       ) : ( */}
       {rootMode === 'standard' && (
-        <Animated.View
-          style={[
-            styles.standardContainer,
-            StyleSheet.absoluteFill, // 强制全屏覆盖
-            animatedTransitionStyle, // ✨ 施加扩散/缩放动画
-            { backgroundColor: 'white' }, // 确保背景不透明，遮住下面的 YearView
-          ]}>
-          <WeekViewProvider
-            selectedDate={selectedDateStr}
-            onDateSelect={handleDayPress}
-            onEventPress={props.onEventPress}
-            onHeaderBackPress={() => {}}
-            areEventsVisible={areEventsVisible}>
-            <View style={styles.standardContainer}>
-              {/* 公共 Header */}
-              <CalendarHeader
-                mode={viewMode}
-                currentDate={selectedDate}
-                onGoBack={handleHeaderBack}
-                onTitlePress={handleTitlePress}
-                onAddEvent={props.onAddEventPress}
-                expandProgress={expandProgress}
-              />
-              <View style={styles.contentContainer}>
-                {/* 月视图部分 */}
-                <Animated.View style={[styles.calendarWrapper, containerStyle]}>
-                  {/* Layer 1: MonthBody (负责动画过程中的视觉) */}
-                  <Animated.View style={[StyleSheet.absoluteFill, monthBodyStyle]}>
-                    <MonthBody
-                      selectedDate={selectedDateStr}
-                      onDateSelect={handleDayPress}
-                      onPageChange={() => {}}
-                      rowHeight={dynamicMonthRowHeight}
-                    />
-                  </Animated.View>
-                  {/* Layer 2: WeekDateHeader (动画替身) */}
-                  {/* 分裂动画 */}
-                  <Animated.View style={[StyleSheet.absoluteFill, transitionViewStyle]}>
-                    <TransitionMonthView
-                      currentDate={selectedDate}
-                      selectedDate={selectedDateStr}
-                      expandProgress={expandProgress}
-                      monthRowHeight={dynamicMonthRowHeight}
-                      weekRowHeight={WEEK_MODE_HEIGHT}
-                      visualOffsetY={visualOffsetY}
-                    />
-                  </Animated.View>
-                  {/* Layer 3: WeekDateHeader (最终形态) */}
-                  <Animated.View style={[StyleSheet.absoluteFill, weekHeaderStyle]}>
-                    <WeekDateHeader />
-                  </Animated.View>
-                </Animated.View>
+        <StandardCalendar
+          // ✨ 核心：传入动画样式，StandardCalendar 内部会应用到它的根 View 上
+          style={animatedTransitionStyle}
+          // 数据
+          selectedDate={selectedDate}
+          events={props.events}
+          // 回调
+          onSelectDate={setSelectedDate}
+          onAddEvent={props.onAddEventPress}
+          onEventPress={props.onEventPress}
+          onRequestGoToYear={handleBackToYear} // 子组件请求返回年视图
+          // 交互控制 (可选)
+          pointerEvents="auto"
+        />
+        // <Animated.View
+        //   style={[
+        //     styles.standardContainer,
+        //     StyleSheet.absoluteFill, // 强制全屏覆盖
+        //     animatedTransitionStyle, // ✨ 施加扩散/缩放动画
+        //     { backgroundColor: 'white' }, // 确保背景不透明，遮住下面的 YearView
+        //   ]}>
+        //   <WeekViewProvider
+        //     selectedDate={selectedDateStr}
+        //     onDateSelect={handleDayPress}
+        //     onEventPress={props.onEventPress}
+        //     onHeaderBackPress={() => {}}
+        //     areEventsVisible={areEventsVisible}>
+        //     <View style={styles.standardContainer}>
+        //       {/* 公共 Header */}
+        //       <CalendarHeader
+        //         mode={viewMode}
+        //         currentDate={selectedDate}
+        //         onGoBack={handleHeaderBack}
+        //         onTitlePress={handleTitlePress}
+        //         onAddEvent={props.onAddEventPress}
+        //         expandProgress={expandProgress}
+        //       />
+        //       <View style={styles.contentContainer}>
+        //         {/* 月视图部分 */}
+        //         <Animated.View style={[styles.calendarWrapper, containerStyle]}>
+        //           {/* Layer 1: MonthBody (负责动画过程中的视觉) */}
+        //           <Animated.View style={[StyleSheet.absoluteFill, monthBodyStyle]}>
+        //             <MonthBody
+        //               selectedDate={selectedDateStr}
+        //               onDateSelect={handleDayPress}
+        //               onPageChange={() => {}}
+        //               rowHeight={dynamicMonthRowHeight}
+        //             />
+        //           </Animated.View>
+        //           {/* Layer 2: WeekDateHeader (动画替身) */}
+        //           {/* 分裂动画 */}
+        //           <Animated.View style={[StyleSheet.absoluteFill, transitionViewStyle]}>
+        //             <TransitionMonthView
+        //               currentDate={selectedDate}
+        //               selectedDate={selectedDateStr}
+        //               expandProgress={expandProgress}
+        //               monthRowHeight={dynamicMonthRowHeight}
+        //               weekRowHeight={WEEK_MODE_HEIGHT}
+        //               visualOffsetY={visualOffsetY}
+        //             />
+        //           </Animated.View>
+        //           {/* Layer 3: WeekDateHeader (最终形态) */}
+        //           <Animated.View style={[StyleSheet.absoluteFill, weekHeaderStyle]}>
+        //             <WeekDateHeader />
+        //           </Animated.View>
+        //         </Animated.View>
 
-                {/* 周视图部分 */}
-                {/* 全天行动画组件 */}
-                <Animated.View style={allDayRowStyle}>
-                  <AnimatedWeekAllDayRow expandProgress={expandProgress} />
-                </Animated.View>
+        //         {/* 周视图部分 */}
+        //         {/* 全天行动画组件 */}
+        //         <Animated.View style={allDayRowStyle}>
+        //           <AnimatedWeekAllDayRow expandProgress={expandProgress} />
+        //         </Animated.View>
 
-                {/* 日程网格 */}
-                <Animated.View style={[styles.bodyContainer, bodySlideStyle]}>
-                  {viewMode === 'month' ? (
-                    <View style={{ flex: 1, backgroundColor: 'white' }} />
-                  ) : (
-                    <Animated.View style={[StyleSheet.absoluteFill, weekBodyFadeStyle]}>
-                      <WeekGridPart />
-                    </Animated.View>
-                  )}
-                </Animated.View>
-              </View>
-            </View>
-          </WeekViewProvider>
-        </Animated.View>
+        //         {/* 日程网格 */}
+        //         <Animated.View style={[styles.bodyContainer, bodySlideStyle]}>
+        //           {viewMode === 'month' ? (
+        //             <View style={{ flex: 1, backgroundColor: 'white' }} />
+        //           ) : (
+        //             <Animated.View style={[StyleSheet.absoluteFill, weekBodyFadeStyle]}>
+        //               <WeekGridPart />
+        //             </Animated.View>
+        //           )}
+        //         </Animated.View>
+        //       </View>
+        //     </View>
+        //   </WeekViewProvider>
+        // </Animated.View>
       )}
     </View>
   )
