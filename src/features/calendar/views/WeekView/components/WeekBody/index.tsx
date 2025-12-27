@@ -1,11 +1,11 @@
 import React from 'react'
 import { View, StyleSheet, ScrollView, Text } from 'react-native'
 import Animated, { useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated'
-import { WeekDateList } from '../../views/WeekView/components/WeekDateList'
-import { AllDayList } from '../../views/WeekView/components/AllDayList'
-import { BodyList } from '../../views/WeekView/components/BodyList'
-import { useWeekViewContext } from '../../views/WeekView/WeekViewContext'
-import { HOUR_HEIGHT, TIME_LABEL_WIDTH } from '../../../../theme/layout'
+import { WeekDateList } from '../WeekDateList'
+import { AllDayList } from '../AllDayList'
+import { BodyList } from '../BodyList'
+import { useWeekViewContext } from '../../WeekViewContext'
+import { HOUR_HEIGHT, TIME_LABEL_WIDTH } from '../../../../../../theme/layout'
 
 // ✨ Part 1: 仅日期行 (放在折叠容器内)
 export const WeekDateHeader = () => {

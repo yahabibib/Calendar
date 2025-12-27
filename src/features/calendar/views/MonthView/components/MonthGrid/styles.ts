@@ -1,6 +1,6 @@
 import { StyleSheet, Platform } from 'react-native';
-import { COLORS } from '../../../../theme';
-import { CALENDAR_ROW_HEIGHT } from '../../constants'; // ✨ 引入统一高度
+import { COLORS } from '../../../../../../theme';
+import { CALENDAR_ROW_HEIGHT } from '../../../../constants'; // ✨ 引入统一高度
 
 export const MONTH_TITLE_HEIGHT = 40;
 

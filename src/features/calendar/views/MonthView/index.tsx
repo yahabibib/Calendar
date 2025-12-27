@@ -19,7 +19,7 @@ import {
 import Animated from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { styles } from './styles'
-import { MonthGrid, MONTH_TITLE_HEIGHT } from '../../components/MonthGrid'
+import { MonthGrid, MONTH_TITLE_HEIGHT } from './components/MonthGrid'
 
 const PAST_MONTHS = 24
 const FUTURE_MONTHS = 24

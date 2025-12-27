@@ -5,7 +5,7 @@ import {
   MONTH_HEADER_HEIGHT, 
   WEEK_MODE_HEIGHT, 
 } from '../constants'
-import { MONTH_TITLE_HEIGHT } from '../components/MonthGrid/styles'
+import { MONTH_TITLE_HEIGHT } from '../views/MonthView/components/MonthGrid/styles'
 
 export interface CalendarLayout {
   screenWidth: number

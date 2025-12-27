@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { styles } from './styles'
 // 引入类型
-import { MiniMonthGrid, LayoutRect } from '../../components/MiniMonthGrid'
+import { MiniMonthGrid, LayoutRect } from './components/MiniMonthGrid'
 
 const PAST_YEARS = 10
 const TOTAL_YEARS = 20

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { format, isSameDay, getDay, startOfMonth } from 'date-fns'
 
-import { useCalendarGrid } from '../../hooks/useCalendarGrid'
+import { useCalendarGrid } from '../../../../hooks/useCalendarGrid'
 import { styles, MONTH_TITLE_HEIGHT } from './styles'
 
 export { MONTH_TITLE_HEIGHT }

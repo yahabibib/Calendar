@@ -1,9 +1,9 @@
 import React, { useRef } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { format } from 'date-fns'
-import { useCalendarGrid } from '../../hooks/useCalendarGrid'
+import { useCalendarGrid } from '../../../../hooks/useCalendarGrid'
 import { styles } from './styles'
-import { COLORS } from '../../../../theme'
+import { COLORS } from '../../../../../../theme'
 
 // 定义坐标类型，供外部使用
 export interface LayoutRect {
@@ -25,7 +25,7 @@ export const MiniMonthGridUpdated = React.memo<MiniMonthGridProps>(
   ({ date, onMonthPress, cellWidth, gridHeight }) => {
     const { gridData } = useCalendarGrid(date)
 
-    // ✨ 1. 引入 Ref 用于测量
+    // 引入 Ref 用于测量
     const containerRef = useRef<TouchableOpacity>(null)
 
     const PADDING_H = 5
@@ -33,13 +33,11 @@ export const MiniMonthGridUpdated = React.memo<MiniMonthGridProps>(
     const MONTH_TITLE_HEIGHT = 24
     const MARGIN_BOTTOM = 20
 
-    // ✨ 2. 视觉优化：标题颜色改为主题色
+    // 视觉优化：标题颜色改为主题色
     const titleColor = COLORS.primary
 
     const handlePress = () => {
-      // ✨ 3. 测量屏幕绝对坐标 (关键步骤)
-      // 使用 measureInWindow 而不是 measure，以获取相对于屏幕的绝对位置，
-      // 这样生成的 Ghost View 才能准确覆盖在上面，不受 ScrollView 滚动影响。
+      // 测量屏幕绝对坐标
       containerRef.current?.measureInWindow((x, y, width, height) => {
         onMonthPress(date, { x, y, width, height })
       })

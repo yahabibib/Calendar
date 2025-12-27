@@ -6,7 +6,7 @@ import { useNavigation } from '@react-navigation/native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 
 import { useWeekViewContext } from '../WeekViewContext'
-import { CurrentTimeIndicator } from '../../../components/CurrentTimeIndicator'
+import { CurrentTimeIndicator } from './CurrentTimeIndicator'
 import { HOUR_HEIGHT } from '../../../../../theme/layout'
 import { EventColumn } from './EventColumn'
 import { DragCreateWrapper } from './DragCreateWrapper'

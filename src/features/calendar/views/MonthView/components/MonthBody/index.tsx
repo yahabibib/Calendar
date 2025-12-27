@@ -18,7 +18,7 @@ import {
   endOfMonth,
 } from 'date-fns'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { MonthGrid, MONTH_TITLE_HEIGHT } from '../../components/MonthGrid'
+import { MonthGrid, MONTH_TITLE_HEIGHT } from '../MonthGrid'
 
 // 预加载范围
 const PAST_MONTHS = 24

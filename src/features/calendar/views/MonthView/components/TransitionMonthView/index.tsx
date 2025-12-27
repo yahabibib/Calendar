@@ -2,9 +2,9 @@ import React, { useMemo } from 'react'
 import { View, Text, StyleSheet, Dimensions } from 'react-native'
 import Animated, { useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated'
 import { format, startOfMonth, getDay, isSameDay, addMonths, subMonths } from 'date-fns'
-import { useCalendarGrid } from '../../hooks/useCalendarGrid'
+import { useCalendarGrid } from '../../../../hooks/useCalendarGrid'
 import { styles as gridStyles } from '../MonthGrid/styles'
-import { MONTH_TITLE_HEIGHT } from '../../constants'
+import { MONTH_TITLE_HEIGHT } from '../../../../constants'
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window')
 
