@@ -43,6 +43,13 @@ export const MonthBody: React.FC<MonthBodyProps> = ({
   const insets = useSafeAreaInsets()
   const listRef = useRef<FlatList>(null)
 
+  // ✨ 新增：记录当前用户正在查看的月份
+  // 用于判断 selectedDate 的变化是“我们自己滑到的”还是“外部改的”
+  const currentVisibleMonthRef = useRef<Date | null>(null)
+
+  // ✨ 新增：标记是否正在被用户手指拖拽
+  const isDraggingRef = useRef(false)
+
   // ✨ 新增：使用 Ref 记录当前的滚动偏移量，避免状态更新导致重渲染
   const scrollYRef = useRef(0)
 
@@ -119,9 +126,29 @@ export const MonthBody: React.FC<MonthBodyProps> = ({
     itemVisiblePercentThreshold: 50,
   }).current
 
+  // 记录拖拽状态
+  const handleScrollBeginDrag = useCallback(() => {
+    isDraggingRef.current = true
+  }, [])
+
   // 外部 selectedDate 变化联动 (保持不变)
   useEffect(() => {
+    // const targetDate = new Date(selectedDate)
+    // const index = monthList.findIndex(d => isSameMonth(d, targetDate))
+    // if (index !== -1) {
+    //   listRef.current?.scrollToIndex({ index, animated: true, viewOffset: 0 })
+    // }
     const targetDate = new Date(selectedDate)
+
+    // 1. 如果用户正在拖拽，绝对不要打断他，直接返回
+    if (isDraggingRef.current) return
+
+    // 2. 如果目标月份已经是当前可见的月份（说明是滑动导致的更新），也不要滚动
+    if (currentVisibleMonthRef.current && isSameMonth(currentVisibleMonthRef.current, targetDate)) {
+      return
+    }
+
+    // 3. 只有当目标月份与当前可见月份不同（比如点击了 Header 的箭头或 MiniMap）时，才滚动
     const index = monthList.findIndex(d => isSameMonth(d, targetDate))
     if (index !== -1) {
       listRef.current?.scrollToIndex({ index, animated: true, viewOffset: 0 })
@@ -178,6 +205,8 @@ export const MonthBody: React.FC<MonthBodyProps> = ({
         removeClippedSubviews={true}
         // ✨ 绑定滚动事件
         onScroll={handleScroll}
+        // ✨ 绑定新的拖拽事件
+        onScrollBeginDrag={handleScrollBeginDrag}
         scrollEventThrottle={16}
       />
     </View>

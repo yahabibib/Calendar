@@ -21,7 +21,6 @@ import { WeekViewProvider } from '../../views/WeekView/WeekViewContext'
 
 // Hooks & Constants
 import { useCalendarLayout } from '../../hooks/useCalendarLayout'
-import { LayoutRect } from '../MiniMonthGrid'
 import { CalendarEvent } from '../../../../types/event'
 
 interface StandardCalendarProps {
@@ -29,24 +28,26 @@ interface StandardCalendarProps {
   selectedDate: Date
   events: CalendarEvent[]
 
+  // ✨ 状态提升：接收父组件的状态
+  viewMode: 'month' | 'week'
+  setViewMode: (mode: 'month' | 'week') => void
+
   // 回调
   onSelectDate: (date: Date) => void
   onAddEvent: () => void
   onEventPress: (event: CalendarEvent) => void
-
-  // ✨ 关键交互：请求返回年视图
   onRequestGoToYear: () => void
 
-  // ✨ 样式注入：接收父组件传来的“扩散/缩放动画”样式
+  // 样式
   style?: StyleProp<ViewStyle>
-
-  // 交互控制
   pointerEvents?: 'box-none' | 'none' | 'auto'
 }
 
 export const StandardCalendar: React.FC<StandardCalendarProps> = ({
   selectedDate,
   events,
+  viewMode, // ✨ 来自父组件
+  setViewMode, // ✨ 来自父组件
   onSelectDate,
   onAddEvent,
   onEventPress,
@@ -54,27 +55,20 @@ export const StandardCalendar: React.FC<StandardCalendarProps> = ({
   style,
   pointerEvents,
 }) => {
-  // ------------------------------------------------------------------
-  // 1. 布局层 (从 Calendar.tsx 移植)
-  // ------------------------------------------------------------------
   const { dynamicMonthRowHeight, MONTH_CONTENT_HEIGHT, WEEK_MODE_HEIGHT } = useCalendarLayout()
 
-  // ------------------------------------------------------------------
-  // 2. 状态层 (从 Calendar.tsx 移植)
-  // ------------------------------------------------------------------
-  const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
-  const [areEventsVisible, setAreEventsVisible] = useState(false) // 懒加载标志
-  const [visualOffsetY, setVisualOffsetY] = useState(0) // 视觉偏移
+  // ❌ 删除本地状态
+  // const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
+
+  const [areEventsVisible, setAreEventsVisible] = useState(false)
+  const [visualOffsetY, setVisualOffsetY] = useState(0)
 
   const selectedDateStr = useMemo(() => format(selectedDate, 'yyyy-MM-dd'), [selectedDate])
   const lastSelectedMonthRef = useRef(selectedDate)
 
-  // 动画值：1=Month, 0=Week
-  const expandProgress = useSharedValue(1)
+  const expandProgress = useSharedValue(viewMode === 'month' ? 1 : 0) // 根据传入的 mode 初始化
 
-  // ------------------------------------------------------------------
-  // 3. 逻辑层 (移植 toggleMode)
-  // ------------------------------------------------------------------
+  // 动画逻辑
   const toggleMode = useCallback(
     (target: 'week' | 'month') => {
       'worklet'
@@ -100,12 +94,12 @@ export const StandardCalendar: React.FC<StandardCalendarProps> = ({
     [expandProgress],
   )
 
-  // 监听 viewMode 变化驱动动画
+  // 监听外部传入的 viewMode 变化
   useEffect(() => {
     toggleMode(viewMode)
   }, [viewMode, toggleMode])
 
-  // 跨月保护逻辑
+  // 跨月保护
   useEffect(() => {
     if (viewMode === 'week') {
       if (!isSameMonth(selectedDate, lastSelectedMonthRef.current)) {
@@ -115,27 +109,14 @@ export const StandardCalendar: React.FC<StandardCalendarProps> = ({
     lastSelectedMonthRef.current = selectedDate
   }, [selectedDate, viewMode])
 
-  // ✨ 物理返回键逻辑 (移植并适配)
-  // 这里直接接管了 Week -> Month 的返回，如果是 Month 则请求父级切到 Year
-  useEffect(() => {
-    const backAction = () => {
-      if (viewMode === 'week') {
-        handleHeaderBack()
-        return true
-      }
-      // 如果是 Month 视图，通知父组件切回 Year
-      onRequestGoToYear()
-      return true
-    }
-    // 注意：这里需要确认是否只有 Standard 模式显示时才注册，或者父组件控制渲染
-    // 假设 StandardCalendar 只在 rootMode='standard' 时挂载或 pointerEvents='auto'
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction)
-    return () => backHandler.remove()
-  }, [viewMode, onRequestGoToYear])
+  // ✨ 物理返回键：这里只需要处理 Standard 内部的逻辑（Week -> Month）
+  // Month -> Year 的逻辑其实父组件 Calendar.tsx 已经处理了，
+  // 但为了双重保险，这里保留 onRequestGoToYear 的调用也是可以的。
+  // 不过通常建议 BackHandler 只在一个层级注册。
+  // 考虑到 Calendar.tsx 已经注册了 BackHandler，这里的其实可以移除，
+  // 或者只保留 handleHeaderBack 供 UI 按钮使用。
 
-  // ------------------------------------------------------------------
-  // 4. 交互处理
-  // ------------------------------------------------------------------
+  // 交互处理
   const handleDayPress = (dateStr: string, visualY?: number) => {
     onSelectDate(new Date(dateStr))
     if (visualY !== undefined) {
@@ -144,14 +125,14 @@ export const StandardCalendar: React.FC<StandardCalendarProps> = ({
       setVisualOffsetY(0)
     }
     if (viewMode === 'month') {
-      setViewMode('week')
+      setViewMode('week') // ✨ 调用父组件的方法
     }
   }
 
   const handleHeaderBack = () => {
     if (viewMode === 'week') {
       setVisualOffsetY(0)
-      setViewMode('month')
+      setViewMode('month') // ✨ 调用父组件的方法
     } else {
       onRequestGoToYear()
     }
@@ -161,36 +142,28 @@ export const StandardCalendar: React.FC<StandardCalendarProps> = ({
     if (viewMode === 'month') onRequestGoToYear()
   }
 
-  // ------------------------------------------------------------------
-  // 5. 动画样式 (全部从 Calendar.tsx 一比一移植)
-  // ------------------------------------------------------------------
+  const handleMonthPageChange = (newDate: Date) => {
+    onSelectDate(newDate)
+  }
 
-  // 容器高度动画
+  // ... 动画样式保持不变 ...
   const containerStyle = useAnimatedStyle(() => ({
-    height: MONTH_CONTENT_HEIGHT, // 保持最大高度，内容通过 mask 裁剪
+    height: MONTH_CONTENT_HEIGHT,
     overflow: 'hidden',
     zIndex: 1,
   }))
-
-  // WeekHeader 显隐
   const weekHeaderStyle = useAnimatedStyle(() => ({
     opacity: expandProgress.value < 0.01 ? 1 : 0,
     zIndex: expandProgress.value < 0.01 ? 20 : -1,
     transform: [{ translateY: 0 }],
   }))
-
-  // 周视图网格 Fade
   const weekBodyFadeStyle = useAnimatedStyle(() => ({
     flex: 1,
     opacity: interpolate(expandProgress.value, [0.6, 0], [0, 1], Extrapolation.CLAMP),
     transform: [
-      {
-        translateY: interpolate(expandProgress.value, [0, 1], [0, 50], Extrapolation.CLAMP),
-      },
+      { translateY: interpolate(expandProgress.value, [0, 1], [0, 50], Extrapolation.CLAMP) },
     ],
   }))
-
-  // MonthBody 显隐
   const monthBodyStyle = useAnimatedStyle(() => {
     const isMonthState = expandProgress.value > 0.99
     return {
@@ -199,14 +172,10 @@ export const StandardCalendar: React.FC<StandardCalendarProps> = ({
       transform: [{ translateX: isMonthState ? 0 : 9999 }],
     }
   })
-
-  // 替身显隐
   const transitionViewStyle = useAnimatedStyle(() => ({
     opacity: expandProgress.value <= 0.99 && expandProgress.value > 0 ? 1 : 0,
     zIndex: 10,
   }))
-
-  // Body 滑动动画
   const bodySlideStyle = useAnimatedStyle(() => ({
     transform: [
       {
@@ -219,8 +188,6 @@ export const StandardCalendar: React.FC<StandardCalendarProps> = ({
       },
     ],
   }))
-
-  // 全天行位置
   const allDayRowStyle = useAnimatedStyle(() => ({
     position: 'absolute',
     top: WEEK_MODE_HEIGHT,
@@ -229,15 +196,12 @@ export const StandardCalendar: React.FC<StandardCalendarProps> = ({
     zIndex: 20,
   }))
 
-  // ------------------------------------------------------------------
-  // 6. 渲染
-  // ------------------------------------------------------------------
   return (
     <Animated.View
       style={[
         styles.standardContainer,
-        StyleSheet.absoluteFill, // 强制全屏覆盖
-        style, // ✨ 接收父组件的 Scale/Translate 动画
+        StyleSheet.absoluteFill,
+        style,
         { backgroundColor: 'white' },
       ]}
       pointerEvents={pointerEvents}>
@@ -245,12 +209,11 @@ export const StandardCalendar: React.FC<StandardCalendarProps> = ({
         selectedDate={selectedDateStr}
         onDateSelect={handleDayPress}
         onEventPress={onEventPress}
-        onHeaderBackPress={() => {}} // 内部 Header 已处理
+        onHeaderBackPress={() => {}}
         areEventsVisible={areEventsVisible}>
         <View style={styles.standardContainer}>
-          {/* Header */}
           <CalendarHeader
-            mode={viewMode}
+            mode={viewMode} // ✨ 传入当前模式
             currentDate={selectedDate}
             onGoBack={handleHeaderBack}
             onTitlePress={handleTitlePress}
@@ -259,19 +222,16 @@ export const StandardCalendar: React.FC<StandardCalendarProps> = ({
           />
 
           <View style={styles.contentContainer}>
-            {/* 月视图容器 */}
             <Animated.View style={[styles.calendarWrapper, containerStyle]}>
-              {/* Layer 1: MonthBody */}
               <Animated.View style={[StyleSheet.absoluteFill, monthBodyStyle]}>
                 <MonthBody
                   selectedDate={selectedDateStr}
                   onDateSelect={handleDayPress}
-                  onPageChange={() => {}}
+                  onPageChange={handleMonthPageChange}
                   rowHeight={dynamicMonthRowHeight}
                 />
               </Animated.View>
 
-              {/* Layer 2: Transition View */}
               <Animated.View style={[StyleSheet.absoluteFill, transitionViewStyle]}>
                 <TransitionMonthView
                   currentDate={selectedDate}
@@ -283,13 +243,11 @@ export const StandardCalendar: React.FC<StandardCalendarProps> = ({
                 />
               </Animated.View>
 
-              {/* Layer 3: Week Header */}
               <Animated.View style={[StyleSheet.absoluteFill, weekHeaderStyle]}>
                 <WeekDateHeader />
               </Animated.View>
             </Animated.View>
 
-            {/* 周视图容器 */}
             <Animated.View style={allDayRowStyle}>
               <AnimatedWeekAllDayRow expandProgress={expandProgress} />
             </Animated.View>
