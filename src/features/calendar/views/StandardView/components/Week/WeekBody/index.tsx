@@ -4,8 +4,8 @@ import Animated, { useAnimatedStyle, interpolate, Extrapolation } from 'react-na
 import { WeekDateList } from '../WeekDateList'
 import { AllDayList } from '../AllDayList'
 import { BodyList } from '../BodyList'
-import { useWeekViewContext } from '../../WeekViewContext'
-import { HOUR_HEIGHT, TIME_LABEL_WIDTH } from '../../../../../../theme/layout'
+import { useWeekViewContext } from '../WeekViewContext'
+import { HOUR_HEIGHT, TIME_LABEL_WIDTH } from '../../../../../../../theme/layout'
 
 // ✨ Part 1: 仅日期行 (放在折叠容器内)
 export const WeekDateHeader = () => {

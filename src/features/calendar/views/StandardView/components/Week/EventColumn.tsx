@@ -1,9 +1,9 @@
 import React, { useMemo, useCallback } from 'react'
 import { View, StyleSheet, Alert } from 'react-native'
-import { CalendarEvent } from '../../../../../types/event'
-import { calculateEventLayout } from '../../../utils/eventLayout'
+import { CalendarEvent } from '../../../../../../types/event'
+import { calculateEventLayout } from '../../../../utils/eventLayout'
 import { DraggableEvent } from './DraggableEvent'
-import { useEventStore } from '../../../../../store/eventStore'
+import { useEventStore } from '../../../../../../store/eventStore'
 
 interface EventColumnProps {
   events: CalendarEvent[]

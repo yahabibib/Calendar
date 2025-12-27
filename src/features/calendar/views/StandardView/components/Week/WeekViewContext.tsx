@@ -24,12 +24,12 @@ import {
   isSameDay,
   isValid,
 } from 'date-fns'
-import { useEventStore } from '../../../../store/eventStore'
-import { CalendarEvent } from '../../../../types/event'
+import { useEventStore } from '../../../../../../store/eventStore'
+import { CalendarEvent } from '../../../../../../types/event'
 import {
   TIME_LABEL_WIDTH as IMPORTED_TIME_LABEL_WIDTH,
   HOUR_HEIGHT,
-} from '../../../../theme/layout'
+} from '../../../../../../theme/layout'
 
 // 时间轴宽度兜底
 const TIME_LABEL_WIDTH = IMPORTED_TIME_LABEL_WIDTH || 52

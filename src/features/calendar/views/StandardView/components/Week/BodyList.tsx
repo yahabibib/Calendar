@@ -5,12 +5,12 @@ import { isSameDay, isValid, setHours, setMinutes } from 'date-fns'
 import { useNavigation } from '@react-navigation/native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 
-import { useWeekViewContext } from '../WeekViewContext'
+import { useWeekViewContext } from './WeekViewContext'
 import { CurrentTimeIndicator } from './CurrentTimeIndicator'
-import { HOUR_HEIGHT } from '../../../../../theme/layout'
+import { HOUR_HEIGHT } from '../../../../../../theme/layout'
 import { EventColumn } from './EventColumn'
 import { DragCreateWrapper } from './DragCreateWrapper'
-import { getEventsForDate } from '../../../../../utils/recurrence'
+import { getEventsForDate } from '../../../../../../utils/recurrence'
 
 interface DayBodyItemProps {
   date: Date

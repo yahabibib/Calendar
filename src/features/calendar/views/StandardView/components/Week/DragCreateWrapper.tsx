@@ -4,8 +4,8 @@ import { GestureDetector, Gesture } from 'react-native-gesture-handler'
 import { runOnJS } from 'react-native-reanimated'
 // ✨ 确认使用：react-native-haptic-feedback
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback'
-import { useWeekViewContext } from '../WeekViewContext'
-import { HOUR_HEIGHT } from '../../../../../theme/layout'
+import { useWeekViewContext } from './WeekViewContext'
+import { HOUR_HEIGHT } from '../../../../../../theme/layout'
 
 // 震动配置
 const hapticOptions = {

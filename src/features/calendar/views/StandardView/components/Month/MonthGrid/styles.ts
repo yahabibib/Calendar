@@ -1,6 +1,5 @@
 import { StyleSheet, Platform } from 'react-native';
-import { COLORS } from '../../../../../../theme';
-import { CALENDAR_ROW_HEIGHT } from '../../../../constants'; // ✨ 引入统一高度
+import { COLORS } from '@/theme';
 
 export const MONTH_TITLE_HEIGHT = 40;
 
@@ -9,7 +8,6 @@ const isPad = Platform.OS === 'ios' && Platform.isPad;
 export const styles = StyleSheet.create({
   container: {},
   monthHeader: {
-    height: MONTH_TITLE_HEIGHT,
     justifyContent: 'flex-end',
     paddingBottom: 8,
   },
@@ -31,28 +29,26 @@ export const styles = StyleSheet.create({
   cell: {
     alignItems: 'center',
     justifyContent: 'center', 
-    // height: CALENDAR_ROW_HEIGHT, 
     borderBottomWidth: 0.5,
     borderBottomColor: '#E5E5EA',
     borderRightWidth: isPad ? 0.5 : 0,
     borderRightColor: '#E5E5EA',
   },
   dayCircle: {
-    width: 36, // 统一为 36
+    width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   selectedCircle: {
-    backgroundColor: COLORS.primary, // 改回主题色，或保持黑色看您喜好
+    backgroundColor: COLORS.primary,
   },
   todayCircle: {
     backgroundColor: '#F2F2F7',
   },
-  // ✨ 字体样式 (标准版)
   dayText: {
-    fontSize: 17, // 统一为 17
+    fontSize: 17,
     color: '#000',
     fontWeight: '400',
     letterSpacing: -0.3,
@@ -68,6 +64,6 @@ export const styles = StyleSheet.create({
   dotContainer: {
     flexDirection: 'row',
     position: 'absolute',
-    bottom: 6, // 统一点点的位置
+    bottom: 6,
   },
 });

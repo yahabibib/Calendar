@@ -2,8 +2,8 @@ import React, { memo, useMemo } from 'react'
 import { View, Text, FlatList } from 'react-native'
 import { isSameDay, isValid, format } from 'date-fns'
 import Animated, { FadeIn } from 'react-native-reanimated'
-import { useWeekViewContext } from '../WeekViewContext'
-import { CalendarEvent } from '../../../../../types/event'
+import { useWeekViewContext } from './WeekViewContext'
+import { CalendarEvent } from '../../../../../../types/event'
 
 interface AllDayItemProps {
   date: Date

@@ -9,15 +9,11 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated'
 import { format, isSameMonth } from 'date-fns'
-import { CalendarHeader } from '../CalendarHeader'
-import { MonthBody } from '../../views/MonthView/components/MonthBody'
-import {
-  WeekDateHeader,
-  AnimatedWeekAllDayRow,
-  WeekGridPart,
-} from '../../views/WeekView/components/WeekBody'
-import { TransitionMonthView } from '../../views/MonthView/components/TransitionMonthView'
-import { WeekViewProvider } from '../../views/WeekView/WeekViewContext'
+import { CalendarHeader } from '../../components/CalendarHeader'
+import { MonthBody } from './components/Month/MonthBody'
+import { WeekDateHeader, AnimatedWeekAllDayRow, WeekGridPart } from './components/Week/WeekBody'
+import { TransitionMonthView } from './components/Month/TransitionMonthView'
+import { WeekViewProvider } from './components/Week/WeekViewContext'
 import { useCalendarLayout } from '../../hooks/useCalendarLayout'
 import { CalendarEvent } from '../../../../types/event'
 

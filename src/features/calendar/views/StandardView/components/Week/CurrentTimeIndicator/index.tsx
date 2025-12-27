@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { differenceInMinutes, startOfDay } from 'date-fns'
-import { COLORS } from '../../../../../../theme'
-import { HOUR_HEIGHT } from '../../../../../../theme/layout'
+import { COLORS } from '../../../../../../../theme'
+import { HOUR_HEIGHT } from '../../../../../../../theme/layout'
 
 export const CurrentTimeIndicator = () => {
   const [now, setNow] = useState(new Date())

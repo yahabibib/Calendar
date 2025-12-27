@@ -12,11 +12,11 @@ import Animated, {
 // ✨ 确认使用：react-native-haptic-feedback
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback'
 import { addMinutes, setHours, setMinutes, startOfDay, addDays } from 'date-fns'
-import { CalendarEvent } from '../../../../../types/event'
-import { HOUR_HEIGHT } from '../../../../../theme/layout'
-import { ScheduleEvent } from '../../../components/ScheduleEvent'
-import { useWeekViewContext } from '../WeekViewContext'
-import { useEventStore } from '../../../../../store/eventStore'
+import { CalendarEvent } from '../../../../../../types/event'
+import { HOUR_HEIGHT } from '../../../../../../theme/layout'
+import { ScheduleEvent } from '../../../../components/ScheduleEvent'
+import { useWeekViewContext } from './WeekViewContext'
+import { useEventStore } from '../../../../../../store/eventStore'
 
 const SNAP_MINUTES = 15
 const GRID_HEIGHT = (SNAP_MINUTES / 60) * HOUR_HEIGHT

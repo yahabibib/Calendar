@@ -1,9 +1,9 @@
 import React, { memo } from 'react'
 import { View, Text, FlatList, StyleSheet, Dimensions, useWindowDimensions } from 'react-native'
 import { format, isSameDay } from 'date-fns'
-import { useWeekViewContext } from '../WeekViewContext'
-import { COLORS } from '../../../../../theme'
-import { WEEK_MODE_HEIGHT } from '../../../constants'
+import { useWeekViewContext } from './WeekViewContext'
+import { COLORS } from '../../../../../../theme'
+import { WEEK_MODE_HEIGHT } from '../../../../constants'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 

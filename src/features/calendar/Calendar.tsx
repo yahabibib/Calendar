@@ -3,7 +3,7 @@ import { View, StyleSheet, BackHandler } from 'react-native'
 import { useCalendarLayout } from './hooks/useCalendarLayout'
 import { useYearTransition } from './hooks/useYearTransition'
 import { YearView } from './views/YearView'
-import { StandardCalendar } from './components/StandardCalendar'
+import { StandardCalendar } from './views/StandardView'
 import { CalendarEvent } from '../../types/event'
 import { LayoutRect } from './views/YearView/components/MiniMonthGrid'
 
