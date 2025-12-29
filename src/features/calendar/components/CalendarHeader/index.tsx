@@ -82,9 +82,9 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         </View>
 
         <View style={styles.rightContainer}>
-          <TouchableOpacity style={styles.iconBtn}>
+          {/* <TouchableOpacity style={styles.iconBtn}>
             <Text style={styles.iconText}>🔍</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity style={[styles.iconBtn, { marginLeft: 16 }]} onPress={onAddEvent}>
             <Text style={[styles.iconText, { fontSize: 22 }]}>+</Text>
           </TouchableOpacity>
