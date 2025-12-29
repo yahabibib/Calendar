@@ -1,12 +1,14 @@
 import React from 'react'
-import { View, StyleSheet } from 'react-native'
+import { View, StyleSheet, Text } from 'react-native'
 import { ListRow } from '../../atoms/ListRow'
+import { COLORS } from '@/theme'
 
 interface RepeatGroupProps {
   repeatLabel: string
   onPressRepeat: () => void
   endRepeatLabel?: string | null
   onPressEndRepeat?: () => void
+  isAdvanced?: boolean // ✨ 新增属性
 }
 
 export const RepeatGroup: React.FC<RepeatGroupProps> = ({
@@ -14,18 +16,20 @@ export const RepeatGroup: React.FC<RepeatGroupProps> = ({
   onPressRepeat,
   endRepeatLabel,
   onPressEndRepeat,
+  isAdvanced,
 }) => {
   return (
     <View style={styles.group}>
       <ListRow
         label="重复"
-        value={repeatLabel}
+        // 如果是高级模式，可以自定义 value 的样式组件
+        value={
+          <Text style={[styles.valueText, isAdvanced && styles.advancedText]}>{repeatLabel}</Text>
+        }
         onPress={onPressRepeat}
-        // 如果有“结束重复”，这一行就不是最后一行（需要底部分割线）
         isLast={!endRepeatLabel}
       />
 
-      {/* 动态渲染：只有开启重复后才显示这一行 */}
       {endRepeatLabel && (
         <>
           <View style={styles.separator} />
@@ -33,7 +37,6 @@ export const RepeatGroup: React.FC<RepeatGroupProps> = ({
             label="结束重复"
             value={endRepeatLabel}
             onPress={onPressEndRepeat}
-            // 这是最后一行，不需要底部分割线，且圆角由外层 group 裁剪
             isLast={true}
           />
         </>
@@ -48,7 +51,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 12,
     marginHorizontal: 16,
-    overflow: 'hidden', // ✨ 关键：确保内部子 View 无论怎么变，边角都被切圆
+    overflow: 'hidden',
   },
   separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#c6c6c8', marginLeft: 16 },
+  valueText: {
+    fontSize: 17,
+    color: '#8e8e93', // 默认灰色
+  },
+  advancedText: {
+    color: COLORS.primary, // ✨ 高级模式显示为主题色 (蓝色)
+    fontWeight: '500',
+  },
 })

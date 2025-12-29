@@ -1,131 +1,122 @@
-import { addDays, setHours, setMinutes, startOfToday, addHours, format } from 'date-fns'
-import uuid from 'react-native-uuid'
-import { CalendarEvent } from '../types/event'
+import { addHours } from 'date-fns'
+import { CalendarEvent } from '../types/event' //
 
-// 定义解析结果类型
-// 我们不需要完整的 CalendarEvent，只需要部分字段即可
+// ✨ 请在这里填入你的通义千问 API Key (或者从环境变量读取)
+const API_KEY = 'sk-da35de0bbfc943e18e8fe64b7a66851a'
+
+// ✨ 通义千问兼容 OpenAI 的接口地址
+const API_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions'
+
+// 定义返回类型，复用 CalendarEvent 的结构
 export interface AIParsedEvent extends Partial<CalendarEvent> {
   originalText: string
 }
 
-/**
- * 模拟 AI 解析服务 (Rule-Based Mock)
- * 这是一个“伪 AI”，使用正则表达式来提取时间、标题和地点。
- * 在实际生产环境中，这里应该调用 OpenAI / Claude 等 LLM API。
- */
+export type AIParseResult = AIParsedEvent | { error: string }
+
 export const AIService = {
   /**
-   * 将自然语言转换为日程对象
+   * 将自然语言转换为日程对象 (调用通义千问)
    * @param text 用户输入的语音文本
    */
-  parseText: async (text: string): Promise<AIParsedEvent> => {
-    // 模拟网络延迟，让体验更真实
-    await new Promise(resolve => setTimeout(resolve, 800))
-
+  parseText: async (text: string): Promise<AIParseResult> => {
+    // 1. 获取当前时间上下文
     const now = new Date()
-    let targetDate = startOfToday() // 默认为今天
-    let isAllDay = false
-    let extractedTitle = text
+    const nowStr = now.toLocaleString('zh-CN', { hour12: false })
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
-    // --- 1. 日期提取 (Date Extraction) ---
-    
-    // 关键词：明天
-    if (text.includes('明天')) {
-      targetDate = addDays(targetDate, 1)
-      extractedTitle = extractedTitle.replace('明天', '')
-    }
-    // 关键词：后天
-    else if (text.includes('后天')) {
-      targetDate = addDays(targetDate, 2)
-      extractedTitle = extractedTitle.replace('后天', '')
-    }
-    // 关键词：下周
-    else if (text.includes('下周')) {
-      targetDate = addDays(targetDate, 7) // 简单处理：下周 = 7天后
-      extractedTitle = extractedTitle.replace('下周', '')
-    }
+    console.log('🤖 AI 正在思考:', text)
 
-    // --- 2. 时间提取 (Time Extraction) ---
-    
-    // 匹配 "X点" 或 "X点半" 或 "X:XX"
-    // 示例匹配: "下午3点", "14:00", "9点半"
-    const timeRegex = /([上下]午)?(\d{1,2})[点:：](半|(\d{2}))?/
-    const timeMatch = text.match(timeRegex)
+    // 2. 构建 System Prompt (提示词工程)
+    const systemPrompt = `
+你是一个智能日程助手。当前时间是：${nowStr}，时区：${timeZone}。
+请根据用户的输入，提取日程信息并返回严格的 JSON 格式。
 
-    if (timeMatch) {
-      const period = timeMatch[1] // 上午/下午
-      let hour = parseInt(timeMatch[2])
-      let minute = 0
-      
-      const minutePart = timeMatch[3] // 半 或 30
+要求：
+1. **title**: 提炼简洁的标题。
+2. **startDate/endDate**: ISO 8601 格式 (YYYY-MM-DDTHH:mm:ss)。如果不指定时长，默认 1 小时。
+3. **isAllDay**: 只有明确提到“全天”或未指定具体时间点时为 true。
+4. **location**: 提取地点。
+5. **description**: 提取备注或未被归类的细节。
+6. **rrule**: 如果包含重复规则，请返回如下 JSON 对象结构（严禁返回字符串）：
+   - 基础字段: 
+     - "freq": "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY"
+     - "interval": 数字 (默认1)
+     - "until": ISO时间字符串 (可选)
+     - "count": 数字 (可选)
+   - 高级字段 (根据语义选择):
+     - "byDay": 字符串数组。
+       - 周模式下: ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
+       - 月模式下支持位置: ["+1MO"](第1个周一), ["-1FR"](最后1个周五)
+     - "byMonthDay": 数字数组，如 [1, 15] 表示1号和15号
+     - "byMonth": 数字数组，如 [1, 12] 表示1月和12月
+   - 示例 A: "每两周的周一和周三" -> { "freq": "WEEKLY", "interval": 2, "byDay": ["MO", "WE"] }
+   - 示例 B: "每月最后一个周五" -> { "freq": "MONTHLY", "byDay": ["-1FR"] }
+   - 示例 C: "每年五月一日" -> { "freq": "YEARLY", "byMonth": [5], "byMonthDay": [1] }
+7. 不要返回任何 Markdown 格式，只返回纯 JSON 字符串。
+    `.trim()
 
-      // 处理分钟
-      if (minutePart === '半') {
-        minute = 30
-      } else if (minutePart) {
-        minute = parseInt(minutePart)
+    try {
+      // 3. 发起请求
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'qwen-plus', // 推荐 qwen-plus，对复杂指令遵循更好
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: text },
+          ],
+          temperature: 0.1, // 低随机性
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'AI 请求失败')
       }
 
-      // 处理上下午 (简单逻辑：下午且小时<12，则+12)
-      if (period === '下午' && hour < 12) {
-        hour += 12
+      // 4. 解析结果
+      const content = data.choices[0]?.message?.content || '{}'
+      const cleanJson = content.replace(/```json|```/g, '').trim()
+
+      console.log('📦 AI 返回数据:', cleanJson)
+
+      const parsed = JSON.parse(cleanJson)
+
+      // 1. 如果 AI 显式返回了 error 字段
+      if (parsed.error) {
+        return { error: parsed.error }
       }
-      // 没有任何前缀，但数字很小（比如“3点”），通常指下午（如果当前时间已经过了早上的话，或者是约定俗成的下午）
-      // 这里简单处理：如果只说“2点”，默认为下午14点（除非明确说上午）
-      else if (!period && hour < 7) {
-        hour += 12 
+
+      // 2. 如果解析出的数据太少（没有标题且没有时间），视为无效
+      if (!parsed.title && !parsed.startDate) {
+        return { error: '无法提取有效的日程信息' }
       }
 
-      targetDate = setHours(targetDate, hour)
-      targetDate = setMinutes(targetDate, minute)
-      
-      // 从标题中移除时间字符串，让标题更干净
-      extractedTitle = extractedTitle.replace(timeMatch[0], '')
-    } else {
-      // 如果没提到具体时间，默认设为全天或当前时间的下一个整点
-      // 这里演示：如果没时间，设为“全天”
-      // isAllDay = true 
-      // 或者：默认设为明天上午9点
-      targetDate = setHours(targetDate, 9)
-      targetDate = setMinutes(targetDate, 0)
-    }
+      // 5. 兜底与格式化
+      let startDate = parsed.startDate ? new Date(parsed.startDate) : addHours(now, 1)
+      let endDate = parsed.endDate ? new Date(parsed.endDate) : addHours(startDate, 1)
 
-    // --- 3. 标题与地点提取 (Title & Location Extraction) ---
-    
-    // 简单启发式：如果有“在”，后面可能跟地点
-    let location = ''
-    const locationRegex = /在(.+?)(开会|见面|吃饭|讨论|聚餐|去|做)/
-    const locMatch = text.match(locationRegex)
-    
-    if (locMatch) {
-      location = locMatch[1] // 提取地点
-      // 不从标题移除，因为“在星巴克”也是标题的一部分，移除会显得句子不通顺
-    }
-
-    // 清理标题的多余空格和介词
-    extractedTitle = extractedTitle
-      .replace(/我想|我要|安排|一个|去/g, '') // 移除各种口语废话
-      .replace(/，|,|。|\./g, ' ') // 标点转空格
-      .trim()
-
-    // 如果标题被删空了，给个默认值
-    if (!extractedTitle) extractedTitle = '新建日程'
-
-    // --- 4. 构造结果 ---
-    
-    // 默认时长 1 小时
-    const endDate = addHours(targetDate, 1)
-
-    return {
-      id: 'temp-ai-id', // 生成临时 ID
-      title: extractedTitle,
-      startDate: targetDate.toISOString(),
-      endDate: endDate.toISOString(),
-      isAllDay,
-      location,
-      originalText: text,
-      // 可以在这里加些默认颜色或日历ID
-      color: '#2196F3', 
+      return {
+        id: 'temp-ai-id', // ⚠️ 必须保持为 temp-ai-id，用于在 Hook 中识别为新建模式
+        title: parsed.title || '新建日程',
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        isAllDay: parsed.isAllDay || false,
+        location: parsed.location || '',
+        description: parsed.description || '',
+        rrule: parsed.rrule || undefined, // 直接透传对象
+        originalText: text,
+        color: '#2196F3',
+      }
+    } catch (error) {
+      console.error('❌ AI 解析错误:', error)
+      return { error: error.message || 'AI 服务暂时不可用' }
     }
   },
 }

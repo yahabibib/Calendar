@@ -4,8 +4,18 @@ export type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
 export interface RecurrenceRule {
   freq: RecurrenceFrequency // 重复频率
   interval?: number // 重复间隔
-  until?: string  // 重复终止时间
-  count?: number  // 重复次数
+  until?: string // 重复终止时间
+  count?: number // 重复次数
+  // 星期维度:
+  // 简单: ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
+  // 高级(月模式下): ["+1MO"] (第1个周一), ["-1FR"] (最后一个周五)
+  byDay?: string[]
+  // 月份日期维度: [1, 15, 31] (每月的1号、15号)
+  byMonthDay?: number[]
+  // 年份月份维度: [1, 12] (每年1月和12月)
+  byMonth?: number[]
+  // 周起始日: "MO" | "SU" (默认周一)
+  weekStart?: string
 }
 
 // 地图定位
@@ -21,10 +31,10 @@ export interface CalendarEvent {
   startDate: string
   endDate: string
   isAllDay: boolean
-  
+
   location?: string
   coordinates?: LatLng
-  
+
   description?: string
   url?: string
   calendarId?: string
@@ -33,17 +43,17 @@ export interface CalendarEvent {
   alarms?: number[]
 
   // 黑名单 (用于母日程): 记录被修改/删除的实例原始时间
-  exdates?: string[] 
+  exdates?: string[]
 
   // 用于例外日程 (Exception): 指向它所属的母日程 ID
-  recurringEventId?: string 
+  recurringEventId?: string
 
   // 用于例外日程: 记录它原本应该是几点开始的 (用于匹配 exdates)
   originalStartTime?: string
 
   // 运行时字段
-  _isInstance?: boolean  // 是否是母日程的实例
-  _originalId?: string  // 母日程的 ID
+  _isInstance?: boolean // 是否是母日程的实例
+  _originalId?: string // 母日程的 ID
 }
 
 export const MOCK_EVENTS: CalendarEvent[] = [
@@ -52,7 +62,7 @@ export const MOCK_EVENTS: CalendarEvent[] = [
     title: '项目启动会',
     description: '讨论日历应用的架构设计',
     location: 'Apple Park',
-    coordinates: { latitude: 37.3346, longitude: -122.0090 },
+    coordinates: { latitude: 37.3346, longitude: -122.009 },
     startDate: new Date().toISOString().split('T')[0] + 'T09:00:00Z',
     endDate: new Date().toISOString().split('T')[0] + 'T10:00:00Z',
     isAllDay: false,
@@ -65,6 +75,18 @@ export const MOCK_EVENTS: CalendarEvent[] = [
     endDate: new Date().toISOString().split('T')[0] + 'T18:30:00Z',
     isAllDay: false,
     // 这是一个每周五重复的例子
-    rrule: { freq: 'WEEKLY' }, 
-  }
-];
+    rrule: { freq: 'WEEKLY' },
+  },
+  {
+    id: 'test-weekly-complex',
+    title: '每周一三五早会',
+    startDate: new Date().toISOString(), // 设为今天
+    endDate: new Date().toISOString(),
+    isAllDay: false,
+    rrule: {
+      freq: 'WEEKLY',
+      interval: 1,
+      byDay: ['MO', 'WE', 'FR'], // ✨ 测试这个字段
+    },
+  },
+]

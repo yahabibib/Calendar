@@ -40,10 +40,8 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   const [isVoiceModalVisible, setVoiceModalVisible] = React.useState(false)
 
   // ✨ 处理 AI 解析结果
-  const handleVoiceAnalyzed = (parsedEvent: any) => {
-    // 这里的 parsedEvent 包含 { title, startDate, endDate, location ... }
-    // 直接带着这些数据跳转到 AddEventScreen
-    navigation.navigate('AddEvent', { event: parsedEvent })
+  const handleVoiceAnalyzed = (promptText: string) => {
+    navigation.navigate('AddEvent', { event: promptText })
   }
 
   // B层 (TitleBar) 动画：Month -> Week 时折叠

@@ -20,7 +20,7 @@ import { COLORS } from '@/theme'
 interface VoiceInputModalProps {
   visible: boolean
   onClose: () => void
-  onAnalyzed: (result: AIParsedEvent) => void
+  onAnalyzed: (result: string) => void
 }
 
 const QUICK_ACTIONS = ['明天下午3点开会', '下周五晚上7点吃饭', '提醒我取快递']
@@ -121,20 +121,14 @@ export const VoiceInputModal: React.FC<VoiceInputModalProps> = ({
   const handleConfirm = async () => {
     if (!text.trim()) return
 
-    setIsAnalyzing(true)
     try {
-      // 如果正在录音，先停掉
       if (isRecording) await stopRecording()
 
-      // 调用之前的 Mock AI 解析
-      const result = await AIService.parseText(text)
-      onAnalyzed(result)
+      onAnalyzed(text)
+
       onClose()
     } catch (e) {
       console.error(e)
-      Alert.alert('分析失败', '请重试')
-    } finally {
-      setIsAnalyzing(false)
     }
   }
 

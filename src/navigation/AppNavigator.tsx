@@ -9,7 +9,7 @@ import { CalendarEvent } from '../types/event'
 
 export type RootStackParamList = {
   Home: undefined
-  AddEvent: { initialDate?: string; event?: Partial<CalendarEvent> }
+  AddEvent: { initialDate?: string; event?: Partial<CalendarEvent>; aiPrompt?: string }
   EventDetails: { event: CalendarEvent }
 }
 

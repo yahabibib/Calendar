@@ -5,202 +5,308 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   TextInput,
-  Switch,
-  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native'
-import { RecurrenceFrequency } from '../../../../types/event'
-import { DateTimeRow } from '../../atoms/DateTimeRow'
-import { addHours } from 'date-fns'
+import { FrequencyWheel } from './Repeater/FrequencyWheel'
+import { MonthDayGrid } from './Repeater/MonthDayGrid'
+import { MonthPosSelector } from './Repeater/MonthPosSelector'
+import { WeekDaySelector } from './Repeater/WeekDaySelector'
+import { COLORS } from '@/theme'
 
-interface CustomRepeatModalProps {
+// 引入上一步 Hook 中定义的类型 (需要确保 Hook 或 Types 文件导出了它，这里我们直接复用 Hook 的 state 结构)
+// 为了方便，这里简单定义一下 Props 接口
+interface RruleState {
+  freq: any
+  interval: string
+  byDay: string[]
+  byMonthDay: number[]
+  isMonthByDay: boolean
+  byDayPos: string | null
+}
+
+interface Props {
   visible: boolean
   onClose: () => void
-  onConfirm: (freq: RecurrenceFrequency, interval: string, until: Date | null) => void
-  initialFreq?: RecurrenceFrequency | null
-  initialInterval?: string
-  initialUntil?: Date | null
+  rruleState: RruleState
+  onChange: (newState: Partial<RruleState>) => void
 }
 
-const FREQ_OPTIONS: RecurrenceFrequency[] = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY']
-const FREQ_LABELS: Record<RecurrenceFrequency, string> = {
-  DAILY: '天',
-  WEEKLY: '周',
-  MONTHLY: '月',
-  YEARLY: '年',
-}
+export const CustomRepeatModal: React.FC<Props> = ({ visible, onClose, rruleState, onChange }) => {
+  // --- 1. 内部草稿状态 (Draft State) ---
+  const [draft, setDraft] = useState<RruleState>(rruleState)
 
-export const CustomRepeatModal: React.FC<CustomRepeatModalProps> = ({
-  visible,
-  onClose,
-  onConfirm,
-  initialFreq,
-  initialInterval,
-  initialUntil,
-}) => {
-  const [freq, setFreq] = useState<RecurrenceFrequency>('DAILY')
-  const [interval, setInterval] = useState('1')
-  const [until, setUntil] = useState<Date | null>(null)
-
+  // 每次打开时，重置草稿为外部真实状态
   useEffect(() => {
     if (visible) {
-      setFreq(initialFreq || 'DAILY')
-      setInterval(initialInterval || '1')
-      setUntil(initialUntil)
+      setDraft(rruleState)
     }
-  }, [visible, initialFreq, initialInterval, initialUntil])
+  }, [visible, rruleState])
 
-  const handleConfirm = () => {
-    onConfirm(freq, interval, until)
+  // --- 2. 辅助更新函数 ---
+  const updateDraft = (updates: Partial<RruleState>) => {
+    setDraft(prev => ({ ...prev, ...updates }))
+  }
+
+  // 处理频率切换 (切换频率时重置某些高级字段，防止数据污染)
+  const handleFreqChange = (newFreq: any) => {
+    updateDraft({
+      freq: newFreq,
+      // 切换频率时，通常建议重置高级规则，除非你想做复杂的保留逻辑
+      // 这里简单处理：保留 interval，重置所有高级选择
+      byDay: [],
+      byMonthDay: [],
+      isMonthByDay: false,
+      // 月模式默认值
+      byDayPos: newFreq === 'MONTHLY' ? '+1MO' : null,
+    })
+  }
+
+  // 处理保存
+  const handleSave = () => {
+    onChange(draft)
     onClose()
   }
 
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.headerBtn}>
-            <Text style={styles.backText}>取消</Text>
+  // --- 3. 渲染间隔输入 (简单的加减号) ---
+  const renderIntervalInput = () => {
+    const val = parseInt(draft.interval) || 1
+    const unitMap: Record<string, string> = {
+      DAILY: '天',
+      WEEKLY: '周',
+      MONTHLY: '月',
+      YEARLY: '年',
+    }
+    const unit = unitMap[draft.freq] || '天'
+
+    return (
+      <View style={styles.intervalRow}>
+        <Text style={styles.label}>重复间隔</Text>
+        <View style={styles.stepper}>
+          <TouchableOpacity
+            style={styles.stepBtn}
+            onPress={() => updateDraft({ interval: Math.max(1, val - 1).toString() })}>
+            <Text style={styles.stepBtnText}>-</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>自定义重复</Text>
-          <TouchableOpacity onPress={handleConfirm} style={styles.headerBtn}>
-            <Text style={styles.confirmText}>完成</Text>
+
+          <Text style={styles.intervalText}>
+            每 {val} {unit}
+          </Text>
+
+          <TouchableOpacity
+            style={styles.stepBtn}
+            onPress={() => updateDraft({ interval: (val + 1).toString() })}>
+            <Text style={styles.stepBtnText}>+</Text>
           </TouchableOpacity>
         </View>
-
-        <ScrollView style={styles.content}>
-          {/* 频率 & 间隔 */}
-          <View style={styles.section}>
-            <View style={styles.row}>
-              <Text style={styles.label}>频率</Text>
-              <View style={styles.freqRow}>
-                {FREQ_OPTIONS.map(f => (
-                  <TouchableOpacity
-                    key={f}
-                    style={[styles.freqChip, freq === f && styles.freqChipSelected]}
-                    onPress={() => setFreq(f)}>
-                    <Text style={[styles.freqText, freq === f && styles.freqTextSelected]}>
-                      {FREQ_LABELS[f]}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.separator} />
-
-            <View style={styles.row}>
-              <Text style={styles.label}>每隔</Text>
-              <View style={styles.intervalRow}>
-                <TextInput
-                  style={styles.intervalInput}
-                  value={interval}
-                  onChangeText={setInterval}
-                  keyboardType="number-pad"
-                  maxLength={3}
-                  selectTextOnFocus
-                />
-                <Text style={styles.unitText}>{FREQ_LABELS[freq]}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* 结束条件 */}
-          <View style={styles.section}>
-            <DateTimeRow
-              label="结束重复"
-              date={until || new Date()}
-              onChange={setUntil}
-              mode="date"
-            />
-            <View style={styles.separator} />
-
-            {/* ✨ Switch 垂直居中修复版 */}
-            <View style={[styles.row, { borderBottomWidth: 0, paddingVertical: 10 }]}>
-              <Text style={styles.label}>永不结束</Text>
-              {/* 使用 View 包裹并 justify-center 确保双重保险 */}
-              <View style={{ justifyContent: 'center' }}>
-                <Switch
-                  value={until === null}
-                  onValueChange={val => setUntil(val ? null : addHours(new Date(), 24))}
-                />
-              </View>
-            </View>
-          </View>
-        </ScrollView>
       </View>
+    )
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.overlay}>
+          {/* 点击背景关闭 (可选) */}
+          <TouchableWithoutFeedback onPress={onClose}>
+            <View style={styles.backdrop} />
+          </TouchableWithoutFeedback>
+
+          <View style={styles.sheet}>
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity onPress={onClose}>
+                <Text style={styles.cancelText}>取消</Text>
+              </TouchableOpacity>
+              <Text style={styles.title}>自定义重复</Text>
+              <TouchableOpacity onPress={handleSave}>
+                <Text style={styles.saveText}>完成</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Content */}
+            <View style={styles.content}>
+              {/* 1. 频率选择 */}
+              <FrequencyWheel selected={draft.freq || 'DAILY'} onChange={handleFreqChange} />
+
+              {/* 2. 间隔选择 */}
+              {renderIntervalInput()}
+
+              <View style={styles.divider} />
+
+              {/* 3. 动态区域：周选择 */}
+              {draft.freq === 'WEEKLY' && (
+                <View>
+                  <Text style={styles.sectionTitle}>在这些星期重复</Text>
+                  <WeekDaySelector
+                    selectedDays={draft.byDay}
+                    onChange={days => updateDraft({ byDay: days })}
+                  />
+                </View>
+              )}
+
+              {/* 4. 动态区域：月选择 */}
+              {draft.freq === 'MONTHLY' && (
+                <View>
+                  {/* Tab 切换 */}
+                  <View style={styles.tabContainer}>
+                    <TouchableOpacity
+                      style={[styles.tab, !draft.isMonthByDay && styles.activeTab]}
+                      onPress={() => updateDraft({ isMonthByDay: false })}>
+                      <Text style={[styles.tabText, !draft.isMonthByDay && styles.activeTabText]}>
+                        按日期
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.tab, draft.isMonthByDay && styles.activeTab]}
+                      onPress={() => updateDraft({ isMonthByDay: true })}>
+                      <Text style={[styles.tabText, draft.isMonthByDay && styles.activeTabText]}>
+                        按星期
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* 面板内容 */}
+                  {!draft.isMonthByDay ? (
+                    <MonthDayGrid
+                      selectedDays={draft.byMonthDay}
+                      onChange={days => updateDraft({ byMonthDay: days })}
+                    />
+                  ) : (
+                    <MonthPosSelector
+                      value={draft.byDayPos}
+                      onChange={pos => updateDraft({ byDayPos: pos })}
+                    />
+                  )}
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
     </Modal>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
-    backgroundColor: '#f2f2f6',
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  sheet: {
+    backgroundColor: COLORS.cardBg, //
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 40,
+    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#f2f2f6',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#c6c6c8',
+    borderBottomColor: COLORS.border, //
   },
-  backText: { fontSize: 17, color: '#007AFF' },
-  confirmText: { fontSize: 17, color: '#007AFF', fontWeight: '600' },
-  title: { fontSize: 17, fontWeight: '600' },
-  headerBtn: { padding: 4 },
-
-  content: { paddingTop: 24 },
-  section: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    marginHorizontal: 16,
-    marginBottom: 24,
-    overflow: 'hidden',
+  title: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: COLORS.text, //
   },
-
-  // ✨ 通用行样式优化：移除固定高度，使用 minHeight + padding
-  row: {
+  cancelText: {
+    fontSize: 17,
+    color: COLORS.textLight, //
+  },
+  saveText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: COLORS.primary, //
+  },
+  content: {
+    padding: 20,
+  },
+  // Interval Styles
+  intervalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center', // 垂直居中核心
-    paddingHorizontal: 16,
-    minHeight: 48, // 保证最小高度，但允许 Switch 撑开
-    paddingVertical: 8, // 增加呼吸感
+    alignItems: 'center',
+    marginBottom: 20,
+    backgroundColor: '#eeeff1',
+    padding: 12,
+    borderRadius: 10,
   },
-
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#c6c6c8',
-    marginLeft: 16,
+  label: {
+    fontSize: 16,
+    color: COLORS.text, //
   },
-  label: { fontSize: 17, color: 'black' },
-
-  freqRow: { flexDirection: 'row' },
-  freqChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
     borderRadius: 8,
-    backgroundColor: '#e5e5ea',
-    marginLeft: 8,
+    padding: 2,
   },
-  freqChipSelected: { backgroundColor: '#007AFF' },
-  freqText: { fontSize: 15, color: 'black' },
-  freqTextSelected: { color: 'white', fontWeight: '500' },
-
-  intervalRow: { flexDirection: 'row', alignItems: 'center' },
-  intervalInput: {
-    width: 60,
-    height: 36,
-    backgroundColor: '#e5e5ea',
-    borderRadius: 8,
+  stepBtn: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f2f2f6',
+    borderRadius: 6,
+  },
+  stepBtnText: {
+    fontSize: 20,
+    color: COLORS.primary, //
+    lineHeight: 22,
+  },
+  intervalText: {
+    marginHorizontal: 12,
+    fontSize: 16,
+    fontWeight: '500',
+    minWidth: 60,
     textAlign: 'center',
-    fontSize: 17,
-    marginRight: 8,
   },
-  unitText: { fontSize: 17, color: '#8e8e93' },
+  divider: {
+    height: 1,
+    backgroundColor: '#eeeff1',
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    color: COLORS.textLight, //
+    marginBottom: 12,
+  },
+  // Tab Styles
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#eeeff1',
+    borderRadius: 8,
+    padding: 2,
+    marginBottom: 16,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 6,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  activeTab: {
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  tabText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  activeTabText: {
+    color: '#000',
+    fontWeight: '600',
+  },
 })
