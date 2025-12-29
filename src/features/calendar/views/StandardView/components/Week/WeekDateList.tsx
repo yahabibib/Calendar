@@ -1,13 +1,21 @@
-import React, { memo, useCallback } from 'react'
+import React, { memo, useCallback, useEffect } from 'react'
 import {
   View,
-  Text,
   FlatList,
   StyleSheet,
   Dimensions,
   useWindowDimensions,
   TouchableOpacity,
 } from 'react-native'
+// ✨ 直接引入 Animated
+import Animated, {
+  useAnimatedStyle,
+  withTiming,
+  interpolateColor,
+  useSharedValue,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated'
 import { format, isSameDay } from 'date-fns'
 import { useWeekViewContext } from './WeekViewContext'
 import { COLORS } from '@/theme'
@@ -16,46 +24,69 @@ import { WeekSlidingIndicator } from './WeekSlidingIndicator'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
+// 🎨 颜色定义
+const SELECTED_COLOR = 'rgba(84, 110, 122, 0.8)'
+const TODAY_BG_COLOR = '#F2F2F7'
+const TODAY_TEXT_COLOR = COLORS.primary
+const NORMAL_TEXT_COLOR = '#000000'
+const SELECTED_TEXT_COLOR = '#FFFFFF'
+
 interface WeekDateItemProps {
   date: Date
   width: number
-  isFocused: boolean
-  isSelected: boolean
+  index: number
   onPress: () => void
 }
 
-const WeekDateItem = memo(({ date, width, isFocused, isSelected, onPress }: WeekDateItemProps) => {
+
+const WeekDateItem = memo(({ date, width, index, onPress }: WeekDateItemProps) => {
+  const { animBodyScrollX, dayColumnWidth } = useWeekViewContext()
   const isToday = isSameDay(date, new Date())
 
-  let containerStyle: any = styles.dateCircle
-  let textStyle: any = styles.dateText
+  // 1. 背景色动画
+  const containerStyle = useAnimatedStyle(() => {
+    // 今天不参与渐变，始终保持浅灰背景
+    if (isToday) return { backgroundColor: TODAY_BG_COLOR }
 
-  if (isSelected) {
-    // 选中状态 (优先级最高)
-    containerStyle = [styles.dateCircle, styles.selectedCircle]
-    textStyle = [styles.dateText, styles.selectedDateText]
-  } else if (isToday) {
-    // 今天 (优先级第二)
-    containerStyle = [styles.dateCircle, styles.todayCircle]
-    textStyle = [styles.dateText, styles.todayDateText]
-  } else if (isFocused) {
-    // 聚焦状态 (Window 第一天)
-    // 移除背景色 (背景由胶囊提供)，改为文字加深
-    containerStyle = styles.dateCircle // 无背景
-    textStyle = [styles.dateText, styles.focusedDateText] // 深灰色
-  } else {
-    // 普通状态
-    textStyle = [styles.dateText, { color: '#000' }]
-  }
+    // 防止除以0
+    if (dayColumnWidth === 0) return { backgroundColor: 'transparent' }
+
+    const currentHeadIndex = animBodyScrollX.value / dayColumnWidth
+    const distance = Math.abs(currentHeadIndex - index)
+    // 限制在 0-1 之间
+    const activeLevel = interpolate(distance, [0, 1], [1, 0], Extrapolation.CLAMP)
+
+    return {
+      backgroundColor: interpolateColor(activeLevel, [0, 1], ['transparent', SELECTED_COLOR]),
+    }
+  })
+
+  // 2. 文字颜色动画
+  const textStyle = useAnimatedStyle(() => {
+    if (isToday) return { color: TODAY_TEXT_COLOR, fontWeight: '600' }
+
+    if (dayColumnWidth === 0) return { color: NORMAL_TEXT_COLOR }
+
+    const currentHeadIndex = animBodyScrollX.value / dayColumnWidth
+    const distance = Math.abs(currentHeadIndex - index)
+    const activeLevel = interpolate(distance, [0, 1], [1, 0], Extrapolation.CLAMP)
+
+    return {
+      color: interpolateColor(activeLevel, [0, 1], [NORMAL_TEXT_COLOR, SELECTED_TEXT_COLOR]),
+      fontWeight: activeLevel > 0.6 ? '600' : '400',
+    }
+  })
 
   return (
     <TouchableOpacity
       style={[styles.itemContainer, { width }]}
       onPress={onPress}
       activeOpacity={0.6}>
-      <View style={containerStyle}>
-        <Text style={textStyle}>{format(date, 'd')}</Text>
-      </View>
+      {/* ✨✨✨ 修复点：直接使用 Animated.View ✨✨✨ */}
+      <Animated.View style={[styles.dateCircle, containerStyle]}>
+        {/* ✨✨✨ 修复点：直接使用 Animated.Text ✨✨✨ */}
+        <Animated.Text style={[styles.dateText, textStyle]}>{format(date, 'd')}</Animated.Text>
+      </Animated.View>
     </TouchableOpacity>
   )
 })
@@ -77,29 +108,24 @@ export const WeekDateList = () => {
   const { width: SCREEN_WIDTH } = useWindowDimensions()
 
   const renderItem = useCallback(
-    ({ item }: { item: Date }) => {
+    ({ item, index }: { item: Date; index: number }) => {
       if (!item) return null
-
-      // 判断状态
-      const isFocused = isSameDay(item, focusedDate)
-      const isSelected = isSameDay(item, new Date(selectedDate))
-
       return (
         <WeekDateItem
           date={item}
           width={weekDateItemWidth}
-          isFocused={isFocused}
-          isSelected={isSelected}
+          index={index}
           onPress={() => onDateSelect(item.toISOString())}
         />
       )
     },
-    [focusedDate, selectedDate, weekDateItemWidth, onDateSelect],
+    [weekDateItemWidth, onDateSelect],
   )
 
   return (
     <View style={{ height: WEEK_MODE_HEIGHT, backgroundColor: 'white' }}>
       <WeekSlidingIndicator />
+
       <FlatList
         ref={headerListRef}
         data={dayList}
@@ -108,24 +134,20 @@ export const WeekDateList = () => {
         renderItem={renderItem}
         horizontal
         showsHorizontalScrollIndicator={false}
-        // 滑动操作
         scrollEnabled={true}
         onScroll={onHeaderScroll}
         onScrollBeginDrag={onHeaderBeginDrag}
         onMomentumScrollEnd={onScrollEnd}
         onScrollEndDrag={onScrollEnd}
         scrollEventThrottle={16}
-        // 翻页操作
         pagingEnabled={!isWideScreen}
         snapToInterval={SCREEN_WIDTH}
         decelerationRate="fast"
-        // 布局计算
         getItemLayout={(data, index) => ({
           length: weekDateItemWidth,
           offset: weekDateItemWidth * index,
           index,
         })}
-        // 初始渲染量优化
         initialNumToRender={7}
         windowSize={3}
         style={{ backgroundColor: 'transparent' }}
@@ -146,33 +168,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'transparent',
   },
-  selectedCircle: {
-    backgroundColor: COLORS.primary,
-  },
-  todayCircle: {
-    backgroundColor: '#F2F2F7',
-  },
-  selectedDateText: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  todayDateText: {
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  // focusedCircle: {
-  //   backgroundColor: '#ff3b30', // 鲜艳的红色，非常醒目
-  // },
-  focusedDateText: {
-    color: '#333333', // 深灰色
-    fontWeight: '700', // 加粗，体现它是窗口的“锚点”
-  },
-  // ⚫️ 普通文字
   dateText: {
     fontSize: 17,
-    fontWeight: '400',
     letterSpacing: -0.3,
   },
 })
