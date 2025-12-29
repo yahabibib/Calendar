@@ -18,7 +18,7 @@ const parseRrule = (rrule?: RecurrenceRule | string) => {
   }
 }
 
-export const useEventForm = (initialDateStr?: string, event?: CalendarEvent) => {
+export const useEventForm = (initialDateStr?: string, event?: Partial<CalendarEvent>) => {
   const addEvent = useEventStore(state => state.addEvent)
   const updateEvent = useEventStore(state => state.updateEvent)
   const updateRecurringEvent = useEventStore(state => state.updateRecurringEvent)
@@ -32,10 +32,14 @@ export const useEventForm = (initialDateStr?: string, event?: CalendarEvent) => 
   const [url, setUrl] = useState(event?.url || '')
   
   const [startDate, setStartDate] = useState(() => 
-    event ? new Date(event.startDate) : (initialDateStr ? new Date(initialDateStr) : new Date())
+    event?.startDate 
+      ? new Date(event.startDate) 
+      : (initialDateStr ? new Date(initialDateStr) : new Date())
   )
   const [endDate, setEndDate] = useState(() => 
-    event ? new Date(event.endDate) : addHours(initialDateStr ? new Date(initialDateStr) : new Date(), 1)
+    event?.endDate 
+      ? new Date(event.endDate) 
+      : addHours(event?.startDate ? new Date(event.startDate) : (initialDateStr ? new Date(initialDateStr) : new Date()), 1)
   )
   const [isAllDay, setIsAllDay] = useState(event?.isAllDay || false)
   
@@ -97,7 +101,7 @@ export const useEventForm = (initialDateStr?: string, event?: CalendarEvent) => 
     }
 
     const newEventData: CalendarEvent = {
-      id: event?.id || (uuid.v4() as string),
+      id: (event?.id && event.id !== 'temp-ai-id') ? event.id : (uuid.v4() as string),
       title: title.trim(),
       location: location.trim(),
       description: description.trim(),
@@ -113,8 +117,10 @@ export const useEventForm = (initialDateStr?: string, event?: CalendarEvent) => 
       _originalId: event?._originalId,
     }
 
-    // 💾 保存逻辑
-    if (event) {
+    const isEditing = event && event.id && event.id !== 'temp-ai-id'
+
+    // 保存逻辑
+    if (isEditing) {
       // 🅰️ 编辑模式
       if (event._isInstance && event._originalId) {
         // 🚨 场景：编辑重复日程实例 -> 必须等待用户选择

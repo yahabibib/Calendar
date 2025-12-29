@@ -10,6 +10,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { format } from 'date-fns'
 import { NAV_BAR_HEIGHT, TITLE_BAR_HEIGHT, WEEK_DAYS_HEIGHT } from '../../constants'
 import { COLORS } from '../../../../theme'
+import { useNavigation } from '@react-navigation/native'
+import { VoiceInputModal } from '../Modals/VoiceInputModal'
 
 interface CalendarHeaderProps {
   mode: 'year' | 'month' | 'week'
@@ -31,6 +33,18 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   expandProgress,
 }) => {
   const insets = useSafeAreaInsets()
+
+  const navigation = useNavigation<any>() // ✨ 获取 navigation
+
+  // ✨ 控制语音 Modal 的状态
+  const [isVoiceModalVisible, setVoiceModalVisible] = React.useState(false)
+
+  // ✨ 处理 AI 解析结果
+  const handleVoiceAnalyzed = (parsedEvent: any) => {
+    // 这里的 parsedEvent 包含 { title, startDate, endDate, location ... }
+    // 直接带着这些数据跳转到 AddEventScreen
+    navigation.navigate('AddEvent', { event: parsedEvent })
+  }
 
   // B层 (TitleBar) 动画：Month -> Week 时折叠
   const titleAnimatedStyle = useAnimatedStyle(() => {
@@ -82,9 +96,11 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         </View>
 
         <View style={styles.rightContainer}>
-          {/* <TouchableOpacity style={styles.iconBtn}>
-            <Text style={styles.iconText}>🔍</Text>
-          </TouchableOpacity> */}
+          {/* ✨✨✨ 新增：麦克风按钮 ✨✨✨ */}
+          <TouchableOpacity style={styles.iconBtn} onPress={() => setVoiceModalVisible(true)}>
+            <Text style={[styles.iconText, { fontSize: 20 }]}>🎙️</Text>
+          </TouchableOpacity>
+          {/* ✨✨✨ 结束新增 ✨✨✨ */}
           <TouchableOpacity style={[styles.iconBtn, { marginLeft: 16 }]} onPress={onAddEvent}>
             <Text style={[styles.iconText, { fontSize: 22 }]}>+</Text>
           </TouchableOpacity>
@@ -109,6 +125,12 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           </Text>
         ))}
       </Animated.View>
+      {/* ✨✨✨ 挂载 Modal ✨✨✨ */}
+      <VoiceInputModal
+        visible={isVoiceModalVisible}
+        onClose={() => setVoiceModalVisible(false)}
+        onAnalyzed={handleVoiceAnalyzed}
+      />
     </View>
   )
 }
