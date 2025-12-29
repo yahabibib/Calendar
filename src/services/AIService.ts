@@ -37,8 +37,17 @@ export const AIService = {
 2. **startDate/endDate**: ISO 8601 格式 (YYYY-MM-DDTHH:mm:ss)。如果不指定时长，默认 1 小时。
 3. **isAllDay**: 只有明确提到“全天”或未指定具体时间点时为 true。
 4. **location**: 提取地点。
-5. **description**: 提取备注或未被归类的细节。
-6. **rrule**: 如果包含重复规则，请返回如下 JSON 对象结构（严禁返回字符串）：
+5. **description**: 提取备注。⚠️ **严格清洗规则**：
+   - 请剔除所有已经被解析为【时间】、【地点】、【重复规则】或【提醒/闹钟】的文本。
+   - 只保留真正的会议内容或待办细节。
+   - 示例：用户说“提醒我开会”，description 应为空，因为“提醒”进了 alarms，“开会”进了 title。
+6. **alarms**: 提取提醒时间。返回一个数字数组，表示【日程开始前多少分钟】响铃。
+   - 示例："提前10分钟" -> [10]
+   - 示例："准时" -> [0]
+   - 示例："提前1小时" -> [60]
+   - 示例："提前一天" -> [1440]
+   - 如果未提及，返回空数组 []。
+7. **rrule**: 如果包含重复规则，请返回如下 JSON 对象结构（严禁返回字符串）：
    - 基础字段: 
      - "freq": "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY"
      - "interval": 数字 (默认1)
@@ -53,7 +62,7 @@ export const AIService = {
    - 示例 A: "每两周的周一和周三" -> { "freq": "WEEKLY", "interval": 2, "byDay": ["MO", "WE"] }
    - 示例 B: "每月最后一个周五" -> { "freq": "MONTHLY", "byDay": ["-1FR"] }
    - 示例 C: "每年五月一日" -> { "freq": "YEARLY", "byMonth": [5], "byMonthDay": [1] }
-7. 不要返回任何 Markdown 格式，只返回纯 JSON 字符串。
+8. 不要返回任何 Markdown 格式，只返回纯 JSON 字符串。
     `.trim()
 
     try {
@@ -103,7 +112,7 @@ export const AIService = {
       let endDate = parsed.endDate ? new Date(parsed.endDate) : addHours(startDate, 1)
 
       return {
-        id: 'temp-ai-id', // ⚠️ 必须保持为 temp-ai-id，用于在 Hook 中识别为新建模式
+        id: 'temp-ai-id',
         title: parsed.title || '新建日程',
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
@@ -111,6 +120,7 @@ export const AIService = {
         location: parsed.location || '',
         description: parsed.description || '',
         rrule: parsed.rrule || undefined, // 直接透传对象
+        alarms: parsed.alarms || [],
         originalText: text,
         color: '#2196F3',
       }

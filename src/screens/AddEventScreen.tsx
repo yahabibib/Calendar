@@ -106,6 +106,13 @@ export const AddEventScreen = () => {
       if (parsedEvent.endDate) form.setEndDate(new Date(parsedEvent.endDate))
       if (parsedEvent.isAllDay !== undefined) form.setIsAllDay(parsedEvent.isAllDay)
       if (parsedEvent.location) form.setLocation(parsedEvent.location)
+      if (
+        parsedEvent.alarms &&
+        Array.isArray(parsedEvent.alarms) &&
+        parsedEvent.alarms.length > 0
+      ) {
+        form.setAlarmOffset(parsedEvent.alarms[0])
+      }
 
       // 填充 RRule (如果 Hook 支持 update)
       if (parsedEvent.rrule) {
@@ -223,18 +230,14 @@ export const AddEventScreen = () => {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled">
           {/* 1. 标题与地点 (套上流光边框) */}
-          <AIGlowingBorder
-            visible={aiStatus === 'thinking' || aiStatus === 'writing'}
-            status={aiStatus === 'error' ? 'error' : 'thinking'}>
-            <TitleLocationGroup
-              title={displayTitle} // ✨ 使用动态值
-              onChangeTitle={form.setTitle}
-              location={form.location}
-              onChangeLocation={form.setLocation}
-              // 在生成过程中禁用输入，防止光标跳动
-              // editable={aiStatus !== 'thinking' && aiStatus !== 'writing'} // 如果 TitleLocationGroup 支持 props 透传
-            />
-          </AIGlowingBorder>
+          <TitleLocationGroup
+            title={displayTitle}
+            onChangeTitle={form.setTitle}
+            location={form.location}
+            onChangeLocation={form.setLocation}
+            // 在 AI 思考时禁用输入，防止光标跳动产生冲突
+            editable={aiStatus !== 'thinking'}
+          />
 
           {/* 2. 时间与全天 */}
           <TimeDurationGroup
@@ -266,15 +269,16 @@ export const AddEventScreen = () => {
           />
 
           {/* 5. 备注 (也套上流光边框，虽然通常 AI 是一起生成的，视觉上统一) */}
-          <AIGlowingBorder
-            visible={aiStatus === 'thinking' || aiStatus === 'writing'}
-            status={aiStatus === 'error' ? 'error' : 'thinking'}>
-            <MetaGroup
-              description={displayDesc} // ✨ 使用动态值
-              onChangeDescription={form.setDescription}
-            />
-          </AIGlowingBorder>
+          <MetaGroup
+            description={displayDesc} // ✨ 使用动态值
+            onChangeDescription={form.setDescription}
+          />
         </ScrollView>
+
+        <AIGlowingBorder
+          visible={aiStatus !== 'idle'} // 只要不是闲置状态就显示
+          status={aiStatus}
+        />
 
         {/* --- Modals 保持不变 --- */}
         <CustomRepeatModal

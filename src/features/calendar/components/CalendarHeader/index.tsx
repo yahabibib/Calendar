@@ -41,7 +41,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
 
   // ✨ 处理 AI 解析结果
   const handleVoiceAnalyzed = (promptText: string) => {
-    navigation.navigate('AddEvent', { event: promptText })
+    navigation.navigate('AddEvent', { aiPrompt: promptText })
   }
 
   // B层 (TitleBar) 动画：Month -> Week 时折叠
