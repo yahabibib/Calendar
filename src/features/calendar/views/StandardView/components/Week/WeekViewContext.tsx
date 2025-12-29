@@ -16,6 +16,7 @@ import {
   ScrollView,
   InteractionManager,
 } from 'react-native'
+import { useSharedValue } from 'react-native-reanimated'
 import {
   addDays,
   addWeeks,
@@ -24,12 +25,9 @@ import {
   isSameDay,
   isValid,
 } from 'date-fns'
-import { useEventStore } from '../../../../../../store/eventStore'
-import { CalendarEvent } from '../../../../../../types/event'
-import {
-  TIME_LABEL_WIDTH as IMPORTED_TIME_LABEL_WIDTH,
-  HOUR_HEIGHT,
-} from '../../../../../../theme/layout'
+import { useEventStore } from '@/store/eventStore'
+import { CalendarEvent } from '@/types/event'
+import { TIME_LABEL_WIDTH as IMPORTED_TIME_LABEL_WIDTH, HOUR_HEIGHT } from '@/theme/layout'
 
 // 时间轴宽度兜底
 const TIME_LABEL_WIDTH = IMPORTED_TIME_LABEL_WIDTH || 52
@@ -82,6 +80,10 @@ interface WeekViewContextType {
 
   editingEventId?: string | null
   setEditingEventId: (id: string | null) => void
+
+  animBodyScrollX: any
+  animHeaderScrollX: any
+  numColumns: number
 }
 
 const WeekViewContext = createContext<WeekViewContextType | null>(null)
@@ -119,6 +121,9 @@ export const WeekViewProvider: React.FC<WeekViewProviderProps> = ({
   const verticalScrollRef = useRef<ScrollView>(null)
   // 防止死循环锁
   const activeScroll = useRef<ScrollSource>(null)
+
+  const animBodyScrollX = useSharedValue(0)
+  const animHeaderScrollX = useSharedValue(0)
 
   const isWideScreen = screenWidth > 600
   const numColumns = isWideScreen ? 7 : 2
@@ -204,19 +209,37 @@ export const WeekViewProvider: React.FC<WeekViewProviderProps> = ({
       const x = e.nativeEvent.contentOffset.x
       // 线性同步 Body
       bodyListRef.current?.scrollToOffset({ offset: x, animated: false })
-      updateVisibleIndex(x)
-      // 检查是否需要翻页 Header
-      checkHeaderFlip(x)
+      // updateVisibleIndex(x)
+      // // 检查是否需要翻页 Header
+      // checkHeaderFlip(x)
+      if (dayColumnWidth > 0) {
+        const dayIndex = Math.round(x / dayColumnWidth)
+        setVisibleStartDateIndex(dayIndex)
+
+        const currentDay = dayList[dayIndex]
+        if (currentDay && !isSameDay(currentDay, focusedDate)) {
+          setFocusedDate(currentDay)
+        }
+
+        const weekIndex = Math.floor(dayIndex / 7)
+        if (weekIndex !== currentWeekIndexRef.current) {
+          currentWeekIndexRef.current = weekIndex
+          headerListRef.current?.scrollToIndex({ index: weekIndex * 7, animated: true })
+        }
+      }
     },
-    [dayColumnWidth, startDateAnchor],
+    [dayColumnWidth, dayList, focusedDate],
   )
 
   // Body 滑动时，Header 不动，只更新高亮；跨周时 Header 才翻页
   const onBodyBeginDrag = useCallback(() => {
     activeScroll.current = 'body'
   }, [])
+  // 用户左右滑动网格 -> 1. 同步 AllDay; 2. 更新高亮; 3. 跨周翻页 Header
   const onBodyScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      animBodyScrollX.value = e.nativeEvent.contentOffset.x
+      // 如果发起者不是 body，直接忽略，防止死循环
       if (activeScroll.current !== 'body') return
       const x = e.nativeEvent.contentOffset.x
 
@@ -227,6 +250,9 @@ export const WeekViewProvider: React.FC<WeekViewProviderProps> = ({
       if (dayColumnWidth > 0) {
         const index = Math.round(x / dayColumnWidth)
         const currentDay = dayList[index]
+        // 更新可视区索引
+        setVisibleStartDateIndex(index)
+        // 实时更新 Header 的高亮圆圈
         if (currentDay && !isSameDay(currentDay, focusedDate)) {
           setFocusedDate(currentDay)
         }
@@ -246,6 +272,7 @@ export const WeekViewProvider: React.FC<WeekViewProviderProps> = ({
   // Header 翻页时，带动 Body 跳转到该周周一
   const onHeaderScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      animHeaderScrollX.value = e.nativeEvent.contentOffset.x
       if (activeScroll.current !== 'header') return
       const x = e.nativeEvent.contentOffset.x
       const { width: screenWidth } = Dimensions.get('window')
@@ -260,8 +287,8 @@ export const WeekViewProvider: React.FC<WeekViewProviderProps> = ({
         const targetBodyOffset = weekIndex * 7 * dayColumnWidth
 
         // c. 同步 Body 和 AllDay 到该周周一
-        bodyListRef.current?.scrollToOffset({ offset: targetBodyOffset, animated: false })
-        allDayListRef.current?.scrollToOffset({ offset: targetBodyOffset, animated: false })
+        bodyListRef.current?.scrollToOffset({ offset: targetBodyOffset, animated: true })
+        allDayListRef.current?.scrollToOffset({ offset: targetBodyOffset, animated: true })
 
         // d. 更新高亮到周一
         const targetDate = dayList[weekIndex * 7]
@@ -338,9 +365,10 @@ export const WeekViewProvider: React.FC<WeekViewProviderProps> = ({
   // 处理用户点击日期联动
   const handleDateSelect = useCallback(
     (dateStr: string) => {
-      console.log(`🔵 [WeekViewContext] handleDateSelect 触发: ${dateStr}`)
       onDateSelect(dateStr)
       const d = new Date(dateStr)
+      if (!isValid(d)) return
+
       setFocusedDate(d) // 立即高亮
 
       // 计算从时间原点到选中日期的偏移天数（dayList对应的索引）
@@ -348,10 +376,6 @@ export const WeekViewProvider: React.FC<WeekViewProviderProps> = ({
       const index = Math.max(0, diff)
       // 对应的周索引（偏移周数）
       const weekIndex = Math.floor(diff / 7)
-
-      console.log(`  Diff Days: ${diff}`)
-      console.log(`  Week Index: ${weekIndex}`)
-      console.log(`  Header Scroll To Index (Monday): ${weekIndex * 7}`)
 
       // body 滚动到具体那一天
       bodyListRef.current?.scrollToIndex({ index, animated: true })
@@ -411,6 +435,10 @@ export const WeekViewProvider: React.FC<WeekViewProviderProps> = ({
     editingEventId,
     setEditingEventId,
     focusedDate,
+
+    animBodyScrollX,
+    animHeaderScrollX,
+    numColumns,
   }
 
   return <WeekViewContext.Provider value={value}>{children}</WeekViewContext.Provider>
