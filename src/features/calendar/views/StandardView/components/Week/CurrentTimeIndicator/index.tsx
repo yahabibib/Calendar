@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
     right: 0, // 确保横向撑满 DayColumn
     height: 12, // 给一点高度容纳圆点，防止被裁切
     marginTop: -6, // 负 margin 让 line 居中对齐 top 位置
-    zIndex: 999, // ✨ 确保浮在所有日程块的最上层
+    zIndex: 999,
     flexDirection: 'row',
     alignItems: 'center',
   },

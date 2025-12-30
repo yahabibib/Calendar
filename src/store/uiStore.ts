@@ -3,9 +3,6 @@ import { Platform, Dimensions } from 'react-native';
 
 interface UIState {
   isIpad: boolean;
-  // 未来可以在这里扩展其他 UI 状态，例如:
-  // orientation: 'portrait' | 'landscape';
-  // themeMode: 'light' | 'dark';
 }
 
 export const useUIStore = create<UIState>((set) => ({

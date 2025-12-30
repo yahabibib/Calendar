@@ -215,6 +215,7 @@ export const StandardCalendar: React.FC<StandardCalendarProps> = ({
                   onDateSelect={handleDayPress}
                   onPageChange={handleMonthPageChange}
                   rowHeight={dynamicMonthRowHeight}
+                  events={events}
                 />
               </Animated.View>
               {/* 替身月视图 */}

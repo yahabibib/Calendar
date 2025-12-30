@@ -1,4 +1,3 @@
-// src/features/event/details/DetailTimeCard.tsx
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { format } from 'date-fns'
@@ -16,7 +15,7 @@ export const DetailTimeCard: React.FC<DetailTimeCardProps> = ({ event }) => {
   const dayStr = format(start, 'M月d日 EEEE', { locale: zhCN })
   const timeStr = event.isAllDay ? '全天' : `${format(start, 'HH:mm')} - ${format(end, 'HH:mm')}`
 
-  // 解析重复规则文案 (简化版，后续可用 rrule.js 库生成更自然的语言)
+  // 解析重复规则文案
   const getRepeatText = () => {
     if (!event.rrule) return null
     const freq = typeof event.rrule === 'string' ? 'CUSTOM' : event.rrule.freq

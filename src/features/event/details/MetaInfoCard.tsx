@@ -1,4 +1,3 @@
-// src/features/event/details/MetaInfoCard.tsx
 import React from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native'
 import { CalendarEvent } from '../../../types/event'

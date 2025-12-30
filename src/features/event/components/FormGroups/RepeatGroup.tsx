@@ -8,7 +8,7 @@ interface RepeatGroupProps {
   onPressRepeat: () => void
   endRepeatLabel?: string | null
   onPressEndRepeat?: () => void
-  isAdvanced?: boolean // ✨ 新增属性
+  isAdvanced?: boolean 
 }
 
 export const RepeatGroup: React.FC<RepeatGroupProps> = ({
@@ -22,7 +22,6 @@ export const RepeatGroup: React.FC<RepeatGroupProps> = ({
     <View style={styles.group}>
       <ListRow
         label="重复"
-        // 如果是高级模式，可以自定义 value 的样式组件
         value={
           <Text style={[styles.valueText, isAdvanced && styles.advancedText]}>{repeatLabel}</Text>
         }
@@ -59,7 +58,7 @@ const styles = StyleSheet.create({
     color: '#8e8e93', // 默认灰色
   },
   advancedText: {
-    color: COLORS.primary, // ✨ 高级模式显示为主题色 (蓝色)
+    color: COLORS.primary, 
     fontWeight: '500',
   },
 })

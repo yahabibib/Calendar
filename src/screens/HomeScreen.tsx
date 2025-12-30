@@ -1,15 +1,19 @@
 import React, { useCallback } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
+import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { Calendar } from '../features/calendar/Calendar'
 import { CalendarEvent } from '../types/event'
-import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/AppNavigator'
+import { useEventStore } from '../store/eventStore'
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>
 
 export const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp>()
+
+  // 获取事件数据
+  const events = useEventStore(state => state.events)
 
   const handleEventPress = useCallback(
     (event: CalendarEvent) => {
@@ -18,7 +22,6 @@ export const HomeScreen = () => {
     [navigation],
   )
 
-  // 之前的 onAddEventPress 逻辑可以保留或根据需求调整
   const handleAddEvent = useCallback(() => {
     navigation.navigate('AddEvent', {})
   }, [navigation])
@@ -27,8 +30,9 @@ export const HomeScreen = () => {
     <View style={styles.container}>
       <Calendar
         mode="week"
+        events={events}
         onEventPress={handleEventPress}
-        onAddEventPress={handleAddEvent} // 确保加号按钮能用
+        onAddEventPress={handleAddEvent}
       />
     </View>
   )

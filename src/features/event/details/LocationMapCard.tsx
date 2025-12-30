@@ -1,11 +1,11 @@
 import React from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking, Platform } from 'react-native'
-import MapView, { Marker } from 'react-native-maps' // ✨ 引入地图组件
+import MapView, { Marker } from 'react-native-maps'
 import { LatLng } from '../../../types/event'
 
 interface LocationMapCardProps {
   location?: string
-  coordinates?: LatLng // ✨ 接收坐标
+  coordinates?: LatLng
 }
 
 export const LocationMapCard: React.FC<LocationMapCardProps> = ({ location, coordinates }) => {
@@ -52,7 +52,7 @@ export const LocationMapCard: React.FC<LocationMapCardProps> = ({ location, coor
               latitudeDelta: 0.01, // 缩放级别：数字越小越精细
               longitudeDelta: 0.01,
             }}
-            scrollEnabled={false} // ✨ 详情页通常禁止小地图滚动，防误触
+            scrollEnabled={false}
             zoomEnabled={false}
             pitchEnabled={false}
             rotateEnabled={false}

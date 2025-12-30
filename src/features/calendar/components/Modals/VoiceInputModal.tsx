@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Modal,
   View,
@@ -9,12 +9,9 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native'
-// ✨ 引入 Voice 库
 import Voice, { SpeechResultsEvent, SpeechErrorEvent } from '@react-native-voice/voice'
 
-import { AIService, AIParsedEvent } from '@/services/AIService'
 import { COLORS } from '@/theme'
 
 interface VoiceInputModalProps {
@@ -31,10 +28,10 @@ export const VoiceInputModal: React.FC<VoiceInputModalProps> = ({
   onAnalyzed,
 }) => {
   const [text, setText] = useState('')
-  const [isAnalyzing, setIsAnalyzing] = useState(false) // 正在 AI 分析
-  const [isRecording, setIsRecording] = useState(false) // ✨ 正在录音
+  const [isAnalyzing, setIsAnalyzing] = useState(false) 
+  const [isRecording, setIsRecording] = useState(false) 
 
-  // --- ✨ 1. 初始化语音引擎 ---
+  // --- 1. 初始化语音引擎 ---
   useEffect(() => {
     // 绑定事件
     Voice.onSpeechStart = onSpeechStart
@@ -59,7 +56,7 @@ export const VoiceInputModal: React.FC<VoiceInputModalProps> = ({
     }
   }, [visible])
 
-  // --- ✨ 2. 语音回调函数 ---
+  // --- 2. 语音回调函数 ---
 
   const onSpeechStart = (e: any) => {
     console.log('开始录音', e)
@@ -88,7 +85,7 @@ export const VoiceInputModal: React.FC<VoiceInputModalProps> = ({
     }
   }
 
-  // --- ✨ 3. 开始/停止录音控制 ---
+  // --- 3. 开始/停止录音控制 ---
 
   const startRecording = async () => {
     setText('') // 清空之前的
@@ -173,7 +170,7 @@ export const VoiceInputModal: React.FC<VoiceInputModalProps> = ({
             )}
           </View>
 
-          {/* ✨ 麦克风大按钮区域 */}
+          {/* 麦克风大按钮区域 */}
           <View style={styles.micArea}>
             <TouchableOpacity
               style={[
@@ -254,7 +251,7 @@ const styles = StyleSheet.create({
   },
   loadingText: { marginLeft: 8, color: COLORS.primary, fontSize: 15, fontWeight: '600' },
 
-  // ✨ Mic Styles
+  // Mic Styles
   micArea: { alignItems: 'center', marginBottom: 20 },
   micBtn: {
     width: 64,

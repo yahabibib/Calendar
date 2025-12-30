@@ -20,36 +20,33 @@ import {
 import { MonthGrid } from '../MonthGrid'
 import { useCalendarLayout } from '@/features/calendar/hooks/useCalendarLayout'
 import { PAST_MONTHS_RANGE, TOTAL_MONTHS_COUNT, MONTH_TITLE_HEIGHT } from '../constants'
+import { CalendarEvent } from '@/types/event'
 
 interface MonthBodyProps {
   selectedDate: string
   onDateSelect: (date: string, visualOffsetY: number) => void
   onPageChange: (currentDate: Date) => void
   rowHeight: number
+  events: CalendarEvent[]
 }
 
 export const MonthBody = React.memo<MonthBodyProps>(
-  ({ selectedDate, onDateSelect, onPageChange, rowHeight }) => {
+  ({ selectedDate, onDateSelect, onPageChange, rowHeight, events }) => {
     const { SCREEN_WIDTH: windowWidth, insets } = useCalendarLayout()
     const listRef = useRef<FlatList>(null)
 
-    // 记录当前用户正在查看的月份
     const currentVisibleMonthRef = useRef<Date | null>(null)
-    // 标记是否正在被用户手指拖拽
     const isDraggingRef = useRef(false)
-    // 记录当前的滚动偏移量，避免状态更新导致重渲染
     const scrollYRef = useRef(0)
 
     const [containerWidth, setContainerWidth] = useState(windowWidth)
 
-    // 布局计算
     const safeWidth = containerWidth > 0 ? containerWidth : windowWidth
     const cellWidth = safeWidth / 7
 
     const onLayout = useCallback(
       (event: LayoutChangeEvent) => {
         const { width } = event.nativeEvent.layout
-        // 只有宽度发生显著变化时才更新状态，避免无谓渲染
         if (Math.abs(width - containerWidth) > 1) {
           setContainerWidth(width)
         }
@@ -57,7 +54,6 @@ export const MonthBody = React.memo<MonthBodyProps>(
       [containerWidth],
     )
 
-    // 生成月份数据 & 布局缓存
     const { monthList, layoutCache } = useMemo(() => {
       const today = new Date()
       const start = subMonths(startOfMonth(today), PAST_MONTHS_RANGE)
@@ -93,7 +89,6 @@ export const MonthBody = React.memo<MonthBodyProps>(
       return index !== -1 ? index : PAST_MONTHS_RANGE
     }, [monthList])
 
-    // 滚动监听，更新 Ref
     const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
       scrollYRef.current = event.nativeEvent.contentOffset.y
     }, [])
@@ -114,27 +109,19 @@ export const MonthBody = React.memo<MonthBodyProps>(
       itemVisiblePercentThreshold: 50,
     }).current
 
-    // 记录拖拽状态
     const handleScrollBeginDrag = useCallback(() => {
       isDraggingRef.current = true
     }, [])
 
-    // 滚动联动逻辑
     useEffect(() => {
       const targetDate = new Date(selectedDate)
-
-      // 拖拽锁：用户手指在屏幕上时，禁止代码滚动
       if (isDraggingRef.current) return
-
-      // 视口锁：如果目标月份已经在视口内，禁止回弹
       if (
         currentVisibleMonthRef.current &&
         isSameMonth(currentVisibleMonthRef.current, targetDate)
       ) {
         return
       }
-
-      // 只有明确的外部跳转（点击Header箭头）才执行滚动
       const index = monthList.findIndex(d => isSameMonth(d, targetDate))
       if (index !== -1) {
         listRef.current?.scrollToIndex({ index, animated: true, viewOffset: 0 })
@@ -147,9 +134,7 @@ export const MonthBody = React.memo<MonthBodyProps>(
           <View>
             <MonthGrid
               currentDate={item}
-              // selectedDate={new Date(selectedDate)}
               onDateSelect={d => {
-                // 视觉偏移 = 该月份在列表中的绝对位置 - 当前列表滚动的距离
                 const layoutOffset = layoutCache[index].offset
                 const currentScroll = scrollYRef.current
                 const visualOffset = layoutOffset - currentScroll
@@ -157,14 +142,14 @@ export const MonthBody = React.memo<MonthBodyProps>(
               }}
               rowHeight={rowHeight}
               cellWidth={cellWidth}
+              events={events}
             />
           </View>
         )
       },
-      [onDateSelect, rowHeight, cellWidth, layoutCache],
+      [onDateSelect, rowHeight, cellWidth, layoutCache, events],
     )
 
-    // 读取布局缓存
     const getItemLayout = useCallback(
       (data: any, index: number) => {
         return layoutCache[index]

@@ -34,12 +34,12 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
 }) => {
   const insets = useSafeAreaInsets()
 
-  const navigation = useNavigation<any>() // ✨ 获取 navigation
+  const navigation = useNavigation<any>() // 获取 navigation
 
-  // ✨ 控制语音 Modal 的状态
+  // 控制语音 Modal 的状态
   const [isVoiceModalVisible, setVoiceModalVisible] = React.useState(false)
 
-  // ✨ 处理 AI 解析结果
+  // 处理 AI 解析结果
   const handleVoiceAnalyzed = (promptText: string) => {
     navigation.navigate('AddEvent', { aiPrompt: promptText })
   }
@@ -58,7 +58,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
     }
   })
 
-  // ✨ Layer C: 静态星期栏动画
+  // Layer C: 静态星期栏动画
   // 修正：Month 和 Week 模式下都显示！只有 Year 模式隐藏。
   const weekDaysAnimatedStyle = useAnimatedStyle(() => {
     if (mode === 'year') {
@@ -94,11 +94,10 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         </View>
 
         <View style={styles.rightContainer}>
-          {/* ✨✨✨ 新增：麦克风按钮 ✨✨✨ */}
+          {/*  麦克风按钮  */}
           <TouchableOpacity style={styles.iconBtn} onPress={() => setVoiceModalVisible(true)}>
             <Text style={[styles.iconText, { fontSize: 20 }]}>🎙️</Text>
           </TouchableOpacity>
-          {/* ✨✨✨ 结束新增 ✨✨✨ */}
           <TouchableOpacity style={[styles.iconBtn, { marginLeft: 16 }]} onPress={onAddEvent}>
             <Text style={[styles.iconText, { fontSize: 22 }]}>+</Text>
           </TouchableOpacity>
@@ -115,7 +114,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
       </Animated.View>
 
       {/* Layer C: 静态星期栏 (一...日) */}
-      {/* ✨ 关键：这里始终显示，提供坐标参考 */}
+      {/* 关键：这里始终显示，提供坐标参考 */}
       <Animated.View style={[styles.weekDaysBar, weekDaysAnimatedStyle]}>
         {WEEK_DAYS.map((day, index) => (
           <Text key={index} style={styles.weekDayText}>
@@ -123,7 +122,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           </Text>
         ))}
       </Animated.View>
-      {/* ✨✨✨ 挂载 Modal ✨✨✨ */}
+      {/*  挂载 Modal  */}
       <VoiceInputModal
         visible={isVoiceModalVisible}
         onClose={() => setVoiceModalVisible(false)}

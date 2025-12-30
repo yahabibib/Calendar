@@ -1,4 +1,3 @@
-// src/navigation/AppNavigator.tsx
 import React from 'react'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
@@ -27,7 +26,7 @@ export const AppNavigator = () => {
           component={AddEventScreen}
           options={{
             presentation: 'modal', // iOS 卡片式弹窗
-            headerShown: true, // ⚡️ 必须在这里设为 true
+            headerShown: true,
             title: '新建日程', // 默认标题
             headerBackTitleVisible: false, // 隐藏返回文字
             headerShadowVisible: false, // 去除阴影

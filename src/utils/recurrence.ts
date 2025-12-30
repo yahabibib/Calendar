@@ -46,6 +46,10 @@ const parseWeekday = (dayStr: string): Weekday | null => {
 }
 
 export const getEventsForDate = (allEvents: CalendarEvent[], date: Date): CalendarEvent[] => {
+  if (!allEvents || !Array.isArray(allEvents)) {
+    return []
+  }
+
   const dayStart = startOfDay(date)
   const dayEnd = endOfDay(date)
 

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { TouchableOpacity, Text, View, StyleSheet, StyleProp, ViewStyle } from 'react-native'
+import { TouchableOpacity, Text, StyleProp, ViewStyle } from 'react-native'
 import { format } from 'date-fns'
 import { CalendarEvent } from '../../../../types/event'
 import { styles } from './styles'
@@ -7,7 +7,6 @@ import { styles } from './styles'
 interface ScheduleEventProps {
   event: CalendarEvent
   onPress?: (event: CalendarEvent) => void
-  // ✨ 新增 style 属性，允许外部控制布局
   style?: StyleProp<ViewStyle>
 }
 
@@ -22,8 +21,6 @@ export const ScheduleEvent: React.FC<ScheduleEventProps> = React.memo(
 
     return (
       <TouchableOpacity
-        // ✨ 将外部传入的 style 合并进来
-        // 注意：这里不再计算 top/height，完全由外部控制
         style={[styles.container, { backgroundColor: event.color || '#2196F3' }, style]}
         onPress={() => onPress?.(event)}
         activeOpacity={0.8}>

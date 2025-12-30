@@ -5,18 +5,15 @@ import { COLORS } from '@/theme'
 interface MonthDayCellProps {
   dayNum: number
   isToday: boolean
-  // 布局属性
   width: number
   height: number
-  // 样式控制
   showBorderRight?: boolean
-  // 交互 (TransitionView 中可能不传)
   onPress?: () => void
+  dots?: string[]
 }
 
 export const MonthDayCell = React.memo<MonthDayCellProps>(
-  ({ dayNum, isToday, width, height, showBorderRight = true, onPress }) => {
-    // 根据是否传入 onPress 决定是 Touchable 还是 View
+  ({ dayNum, isToday, width, height, showBorderRight = true, onPress, dots = [] }) => {
     const Container = onPress ? TouchableOpacity : View
 
     return (
@@ -27,8 +24,15 @@ export const MonthDayCell = React.memo<MonthDayCellProps>(
         <View style={[styles.dayCircle, isToday && styles.todayCircle]}>
           <Text style={[styles.dayText, isToday && styles.todayText]}>{dayNum}</Text>
         </View>
-        {/* 预留 Dot 位置 */}
-        <View style={styles.dotContainer} />
+
+        {/* ✨✨✨ 渲染小圆点 ✨✨✨ */}
+        <View style={styles.dotContainer}>
+          {dots.slice(0, 3).map((color, index) => (
+            <View key={index} style={[styles.dot, { backgroundColor: color }]} />
+          ))}
+          {/* 如果超过3个，可以用一个灰色小点表示更多，或者只显示3个 */}
+          {dots.length > 3 && <View style={[styles.dot, { backgroundColor: '#ccc' }]} />}
+        </View>
       </Container>
     )
   },
@@ -40,7 +44,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderBottomWidth: 0.5,
     borderBottomColor: '#E5E5EA',
-    // borderRightWidth: 0.5, // 默认有边框
     borderRightColor: '#E5E5EA',
   },
   dayCircle: {
@@ -49,6 +52,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 4,
   },
   todayCircle: {
     backgroundColor: '#F2F2F7',
@@ -64,6 +68,15 @@ const styles = StyleSheet.create({
   },
   dotContainer: {
     position: 'absolute',
-    bottom: 6,
+    bottom: 6, // 距离底部的位置
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2, // 圆点间距
+  },
+  dot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
 })

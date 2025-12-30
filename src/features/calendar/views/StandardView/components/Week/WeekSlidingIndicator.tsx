@@ -3,11 +3,11 @@ import { StyleSheet } from 'react-native'
 import Animated, { useAnimatedStyle } from 'react-native-reanimated'
 import { useWeekViewContext } from './WeekViewContext'
 
-// 🎨 样式常量
+// 样式常量
 const SLATE_BLUE_BG = 'rgba(84, 110, 122, 0.1)'
 const SLATE_BLUE_BORDER = 'rgba(84, 110, 122, 0.15)'
 
-// 📐 几何常数
+// 几何常数
 const CIRCLE_SIZE = 36
 const CONTAINER_HEIGHT = 52
 const VERTICAL_PADDING = (CONTAINER_HEIGHT - CIRCLE_SIZE) / 2 // 8px
@@ -27,7 +27,7 @@ export const WeekSlidingIndicator = () => {
     const indicatorTranslateX = scrolledDays * weekDateItemWidth
     const finalX = indicatorTranslateX - animHeaderScrollX.value
 
-    // 2. ✨✨✨ 严丝合缝核心计算 ✨✨✨
+    // 2.  严丝合缝核心计算 
     // 计算单个格子内的单侧留白：(格子宽50 - 圆圈36) / 2 = 7px
     const sidePadding = (weekDateItemWidth - CIRCLE_SIZE) / 2
 

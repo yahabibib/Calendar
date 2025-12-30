@@ -1,10 +1,10 @@
 import { addHours } from 'date-fns'
-import { CalendarEvent } from '../types/event' //
+import { CalendarEvent } from '../types/event'
 
-// ✨ 请在这里填入你的通义千问 API Key (或者从环境变量读取)
+// 请在这里填入你的通义千问 API Key (或者从环境变量读取)
 const API_KEY = 'sk-da35de0bbfc943e18e8fe64b7a66851a'
 
-// ✨ 通义千问兼容 OpenAI 的接口地址
+// 通义千问兼容 OpenAI 的接口地址
 const API_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions'
 
 // 定义返回类型，复用 CalendarEvent 的结构

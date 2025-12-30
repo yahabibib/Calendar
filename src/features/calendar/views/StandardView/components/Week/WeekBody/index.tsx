@@ -7,12 +7,12 @@ import { BodyList } from '../BodyList'
 import { useWeekViewContext } from '../WeekViewContext'
 import { HOUR_HEIGHT, TIME_LABEL_WIDTH } from '../../../../../../../theme/layout'
 
-// ✨ Part 1: 仅日期行 (放在折叠容器内)
+// Part 1: 仅日期行 (放在折叠容器内)
 export const WeekDateHeader = () => {
   return <WeekDateList />
 }
 
-// ✨ Part 2: 仅全天行 (放在折叠容器外，避免被切掉)
+// Part 2: 仅全天行 (放在折叠容器外，避免被切掉)
 export const WeekAllDayRow = () => {
   return (
     <View style={styles.allDayContainer}>
@@ -37,14 +37,21 @@ export const AnimatedWeekAllDayRow: React.FC<AnimatedAllDayProps> = ({ expandPro
   const animatedStyle = useAnimatedStyle(() => {
     const height = interpolate(
       expandProgress.value,
-      [0.3, 0], // 在动画的最后阶段展开，避免太早出现遮挡视线
+      [0.1, 0], // 在动画的最后阶段展开，避免太早出现遮挡视线
       [0, derivedHeaderHeight],
+      Extrapolation.CLAMP,
+    )
+
+    const opacity = interpolate(
+      expandProgress.value,
+      [0.1, 0], // 修复点：稍微早一点开始显现，不要等到最后
+      [0, 1],
       Extrapolation.CLAMP,
     )
 
     return {
       height,
-      opacity: interpolate(expandProgress.value, [0.1, 0], [0, 1]), // 快结束时才显示
+      opacity,
       overflow: 'hidden',
     }
   })
@@ -61,7 +68,7 @@ export const AnimatedWeekAllDayRow: React.FC<AnimatedAllDayProps> = ({ expandPro
   )
 }
 
-// ✨ Part 3: 时间轴网格
+// Part 3: 时间轴网格
 export const WeekGridPart = () => {
   const hours = Array.from({ length: 24 }).map((_, i) => i)
   const { verticalScrollRef, onVerticalLayout } = useWeekViewContext()
